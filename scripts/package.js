@@ -54,6 +54,8 @@ function pickVersion() {
     overwrite: true,
     icon: path.join(root, 'assets', 'icon.icns'),
     appBundleId: 'com.pane.app',
+    // Spin drives Spotify and Music with Apple Events; macOS shows this when it asks you to allow that.
+    extendInfo: { NSAppleEventsUsageDescription: 'Spin plays, skips and sets the volume in your music app.' },
     appVersion: version, // Finder's "Version" and the About window (CFBundleShortVersionString)
     buildVersion: version, // CFBundleVersion
     ignore: [/^\/(build|assets|scripts|docs|\.claude|\.github)(\/|$)/, /\/prebuilds\/(linux|win32)\//],

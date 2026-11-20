@@ -1,9 +1,11 @@
-const { app, BrowserWindow, Menu, ipcMain, screen, systemPreferences, shell, globalShortcut } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, screen, systemPreferences, shell, globalShortcut, desktopCapturer, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { uIOhook, UiohookKey } = require('uiohook-napi');
 const Wheel = require('./wheel.js'); // same geometry the wheel is drawn with, for hit-testing
 const Tools = require('./tools.js'); // Pane's tools and Away's moods
+const Spin = require('./spin.js'); // Spin's music wheel: same geometry for drawing and hit-testing
+const Music = require('./music.js'); // Spin's link to Spotify, Music or the media keys
 const { execFile } = require('child_process');
 
 // ---------- persistence ----------
@@ -11,9 +13,9 @@ const { execFile } = require('child_process');
 // Letting go in the middle of the wheel cancels.
 const TOOL_IDS = ['pencil', 'eraser', 'clear', 'undo', 'redo', 'toggle'];
 const DEFAULTS = {
-  hotkey: { codes: [UiohookKey.Alt, UiohookKey.AltRight], symbol: '⌥', name: 'Option' },
+  hotkey: { codes: [UiohookKey.Alt], symbol: '⌥', name: 'Left Option', side: 'left' },
   // Held while a tool is in hand, it puts the pen down without clicking.
-  drawKey: { codes: [UiohookKey.Ctrl, UiohookKey.CtrlRight], symbol: '⌃', name: 'Control' },
+  drawKey: { codes: [UiohookKey.Ctrl], symbol: '⌃', name: 'Left Control', side: 'left' },
   tools: TOOL_IDS.map((id) => ({ id, on: true })),
   pencilColor: '#E5484D',
   pencilSize: 4,
@@ -31,7 +33,15 @@ const DEFAULTS = {
     hidePointer: true,
     enabled: true,
   },
+  spin: {
+    // Held like Scrawl's wheel key. The right ⌘ alone, so it stays clear of ⌘-shortcuts made with the left one.
+    key: { codes: [UiohookKey.MetaRight], symbol: '⌘', name: 'Right Command', side: 'right' },
+    app: 'spotify', // 'spotify' | 'music' | 'other' (any player, through the media keys)
+    count: 5, // songs shown each way
+    enabled: true,
+  },
 };
+const SPIN_COUNTS = [3, 4, 5, 6];
 const WHEEL_SIZES = [60, 76, 96]; // small, medium, large (outer radius, px)
 
 const file = (name) => path.join(app.getPath('userData'), name);
@@ -62,13 +72,15 @@ function saveDrawingsSoon() {
 }
 
 // ---------- runtime state ----------
-let activeTool = null; // 'pencil' | 'eraser' | null
+let activeTool = null; // 'pencil' | 'eraser' | 'picker' (taking a color from the screen) | null
 let visible = true;
 let holding = false;
 let binding = false; // false, or which key is being chosen: 'hotkey' | 'drawKey'
 let pen = null; // { displayId, by: 'key' | 'mouse' } while the draw key or the mouse button holds the pen down
 let quitting = false;
 const menu = { open: false, x: 0, y: 0, displayId: null, hover: -1, items: [] };
+// Spin's wheel. offUp / offBack scroll the coming and past songs; vol0 is the volume it opened at.
+const spin = { open: false, x: 0, y: 0, displayId: null, hover: -1, offUp: 0, offBack: 0, vol0: null, vol: null, scroll: null };
 const overlays = new Map(); // displayId -> BrowserWindow
 let settingsWin = null;
 
@@ -172,7 +184,7 @@ function createOverlays() {
 // macOS drops a hidden window's "join every Space" setting and brings it back on Scrawl's own Space,
 // not the one you're on. Turning Scrawl off is the only time the layers leave the screen.
 function overlayNeeded() {
-  return settings.enabled;
+  return settings.enabled || settings.spin.enabled; // Spin's wheel opens on the same layers
 }
 function syncOverlays() {
   for (const [, w] of overlays) {
@@ -205,7 +217,7 @@ function syncOverlays() {
 let poll = null;
 let lastCursorKey = '';
 function ensurePoll() {
-  const need = menu.open || !!activeTool;
+  const need = menu.open || spin.open || !!activeTool;
   if (need && !poll) poll = setInterval(tick, 8);
   if (!need && poll) {
     clearInterval(poll); poll = null; lastCursorKey = '';
@@ -224,6 +236,10 @@ function tick() {
       menu.hover = h;
       overlays.get(menu.displayId)?.webContents.send('menu:hover', h);
     }
+  }
+  if (spin.open) {
+    const h = spinHit(p);
+    if (h !== spin.hover) spinHover(h);
   }
   const d = screen.getDisplayNearestPoint(p);
   if (pen && pen.displayId !== String(d.id)) penUp(); // a stroke can't cross between screens
@@ -255,7 +271,8 @@ function closeMenu(pick) {
   const p = screen.getCursorScreenPoint();
   const hover = hoverIndex(p.x - menu.x, p.y - menu.y);
   let choice = null; // letting go in the middle cancels
-  if (pick && hover >= Wheel.COLOR_HOVER) choice = { tool: 'pencil', color: Wheel.COLORS[hover - Wheel.COLOR_HOVER].hex };
+  if (pick && hover === Wheel.PICK_HOVER) choice = 'picker';
+  else if (pick && hover >= Wheel.COLOR_HOVER) choice = { tool: 'pencil', color: Wheel.COLORS[hover - Wheel.COLOR_HOVER].hex };
   else if (pick && hover >= 0) choice = menu.items[hover];
   overlays.get(menu.displayId)?.webContents.send('menu:close', choice);
   menu.open = false;
@@ -273,6 +290,12 @@ function applyTool(id) {
     visible = true;
     broadcast();
     settingsWin?.webContents.send('settings:changed', settings);
+    return;
+  }
+  if (id === 'picker') {
+    // Choosing the picker again while it's out puts it away, back to what you held before.
+    if (activeTool === 'picker') { pickToken++; activeTool = pickFrom; broadcast(); }
+    else startPick();
     return;
   }
   if (id === 'pencil' || id === 'eraser') {
@@ -296,6 +319,73 @@ function applyTool(id) {
   }
   broadcast();
 }
+
+// ---------- color picker ----------
+// Takes one color from the screen, then hands you the pencil in it. The screen is photographed once
+// (after the wheel has shrunk away, so it isn't in the picture) and each layer samples its own photo,
+// so the loupe beside the cursor is never in what it shows. Needs Screen Recording access.
+let pickFrom = null; // the tool held before the picker, for putting it away again
+let pickToken = 0; // a newer pick (or putting the picker away) cancels a photo still being taken
+async function startPick() {
+  pickFrom = activeTool;
+  activeTool = 'picker'; // the layers catch clicks from now on, so nothing lands in the app beneath
+  broadcast();
+  const token = ++pickToken;
+  const live = () => token === pickToken && activeTool === 'picker';
+  await new Promise((r) => setTimeout(r, 260)); // the wheel's closing animation
+  if (!live()) return;
+  let shots = null;
+  try { shots = await photographScreens(); } catch (err) { console.warn('Screen photo failed:', err.message); }
+  if (!live()) return;
+  const access = systemPreferences.getMediaAccessStatus('screen');
+  if (access !== 'granted' || !shots?.size) {
+    // Without access macOS hands back only the wallpaper, so don't pretend: say what's needed.
+    activeTool = pickFrom;
+    broadcast();
+    const d = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    overlays.get(String(d.id))?.webContents.send('pick:denied');
+    if (access === 'denied') shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
+    return;
+  }
+  for (const [id, shot] of shots) overlays.get(id)?.webContents.send('pick:image', shot);
+}
+// One full-resolution photo per screen, as raw BGRA pixels (exact colors, no PNG round trip).
+async function photographScreens() {
+  const out = new Map();
+  const bySize = new Map();
+  for (const d of screen.getAllDisplays()) {
+    const size = { width: Math.round(d.bounds.width * d.scaleFactor), height: Math.round(d.bounds.height * d.scaleFactor) };
+    const key = `${size.width}x${size.height}`;
+    if (!bySize.has(key)) bySize.set(key, { size, ids: [] });
+    bySize.get(key).ids.push(String(d.id));
+  }
+  for (const { size, ids } of bySize.values()) {
+    const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: size });
+    for (const src of sources) {
+      if (!ids.includes(String(src.display_id)) || src.thumbnail.isEmpty()) continue;
+      const data = src.thumbnail.toBitmap();
+      const { width, height } = src.thumbnail.getSize();
+      const k = Math.sqrt(data.length / 4 / (width * height)) || 1; // getSize can be in points
+      out.set(String(src.display_id), { width: Math.round(width * k), height: Math.round(height * k), data });
+    }
+  }
+  return out;
+}
+function pickAt() {
+  const p = screen.getCursorScreenPoint();
+  const id = String(screen.getDisplayNearestPoint(p).id);
+  overlays.get(id)?.webContents.send('pick:click', toLocal(id, p));
+}
+ipcMain.on('pick:color', (_e, hex) => {
+  if (activeTool !== 'picker' || !/^#[0-9A-F]{6}$/.test(hex)) return;
+  pickToken++;
+  settings = { ...settings, pencilColor: hex };
+  writeJSON('settings.json', settings);
+  activeTool = 'pencil';
+  visible = true;
+  broadcast();
+  settingsWin?.webContents.send('settings:changed', settings);
+});
 
 // ---------- undo / redo ----------
 // Every pencil or eraser stroke, and Clear all, is one step. Kept in memory for this session.
@@ -348,6 +438,7 @@ function dropTool() {
 // asked for them, and then clicking drew nothing while the draw key still worked. The hook always sees both.
 function penDown(by) {
   if (!activeTool || menu.open || pen) return;
+  if (activeTool === 'picker') { pickAt(); return; } // a click (or the draw key) takes the color
   const p = screen.getCursorScreenPoint();
   const d = screen.getDisplayNearestPoint(p);
   pen = { displayId: String(d.id), by };
@@ -365,27 +456,45 @@ const keyName = {};
 for (const [k, v] of Object.entries(UiohookKey)) if (!(v in keyName)) keyName[v] = k;
 const MODIFIERS = { Alt: ['⌥', 'Option'], Ctrl: ['⌃', 'Control'], Meta: ['⌘', 'Command'], Shift: ['⇧', 'Shift'] };
 const SYMBOLS = { CapsLock: '⇪', Space: '␣', Tab: '⇥', Backquote: '`', Backspace: '⌫', Enter: '↩' };
+// A modifier counts only on the side it was pressed: left ⌥ and right ⌥ are different keys.
 function keyInfo(code) {
   const n = keyName[code] || `Key ${code}`;
   const base = n.replace(/Right$/, '');
   if (MODIFIERS[base]) {
-    return { codes: [UiohookKey[base], UiohookKey[`${base}Right`]], symbol: MODIFIERS[base][0], name: MODIFIERS[base][1] };
+    const side = n.endsWith('Right') ? 'right' : 'left';
+    return { codes: [code], symbol: MODIFIERS[base][0], name: `${side === 'right' ? 'Right' : 'Left'} ${MODIFIERS[base][1]}`, side };
   }
   const nice = n === 'CapsLock' ? 'Caps Lock' : n;
   return { codes: [code], symbol: SYMBOLS[n] || (n.length <= 3 ? n : n[0]), name: nice };
 }
 
-// ---------- global input ----------
-function isHotkey(code) { return settings.hotkey.codes.includes(code); }
-function isDrawKey(code) { return settings.drawKey.codes.includes(code); }
-const KEY_LABEL = { hotkey: 'wheel key', drawKey: 'draw key' };
+// ---------- held keys: one key, or several held together ----------
+// Each held key (Scrawl's wheel key and draw key, Spin's key) is a combo of one or more keys. Each key
+// lists the codes that count for it: both sides of a modifier, or only one side for Spin's. `codes`,
+// `symbol` and `name` describe the whole combo.
+function combo(keys) {
+  const c = { keys, codes: [...new Set(keys.flatMap((k) => k.codes))], symbol: keys.map((k) => k.symbol).join(''), name: keys.map((k) => k.name).join(' + ') };
+  if (keys.length === 1 && keys[0].side) c.side = keys[0].side;
+  return c;
+}
+// Settings saved before combos had a single key's fields at the top, and a modifier then counted on
+// both sides. Now every modifier has a side: an old both-sides key becomes its left one.
+function asCombo(k) {
+  const keys = k?.keys?.length ? k.keys : [{ codes: k.codes, symbol: k.symbol, name: k.name, ...(k.side ? { side: k.side } : {}) }];
+  return combo(keys.map((key) => (key.codes.length > 1 && MOD_CODES.has(key.codes[0]) ? keyInfo(key.codes[0]) : key)));
+}
+const KEY_LABEL = { hotkey: 'wheel key', drawKey: 'draw key', spinKey: 'Spin key' };
+// Every held key Pane listens for, by name. Spin's lives inside its own settings.
+const keyOf = (which) => (which === 'spinKey' ? settings.spin.key : settings[which]);
+function setKey(which, info) {
+  if (which === 'spinKey') settings = { ...settings, spin: { ...settings.spin, key: info } };
+  else settings = { ...settings, [which]: info };
+}
 
-// The wheel opens only when its key is pressed on its own. If anything else is already held (⌃, ⌘, ⇧,
-// a letter…), you're pressing a shortcut, so the wheel stays shut until the wheel key is let go.
-// Modifiers come from the event's own flags, which macOS keeps accurate. Other keys are remembered
-// as they go down; a held key repeats its key-down, so one not seen for a second counts as let go
-// (macOS sometimes drops key-ups, and a stuck entry must never block the wheel for good).
-const heldKeys = new Map(); // keycode -> last seen
+// What's held right now. Modifiers follow the event's own flags, which macOS keeps accurate. Other keys
+// repeat their key-down while held, so one not seen for a second counts as let go (macOS sometimes drops
+// key-ups, and a stuck entry must never block a wheel for good).
+const down = new Map(); // keycode -> last seen
 const MOD_FLAGS = [
   ['altKey', [UiohookKey.Alt, UiohookKey.AltRight]],
   ['ctrlKey', [UiohookKey.Ctrl, UiohookKey.CtrlRight]],
@@ -393,39 +502,96 @@ const MOD_FLAGS = [
   ['shiftKey', [UiohookKey.Shift, UiohookKey.ShiftRight]],
 ];
 const MOD_CODES = new Set(MOD_FLAGS.flatMap(([, codes]) => codes));
-let hotkeyBlocked = false; // the wheel key went down mid-shortcut: ignore it until it's let go
-function otherKeysHeld(e) {
-  const own = settings.hotkey.codes;
+function noteKey(e, isDown) {
+  if (isDown) down.set(e.keycode, Date.now());
+  else down.delete(e.keycode);
   for (const [flag, codes] of MOD_FLAGS) {
-    if (e[flag] && !codes.some((c) => own.includes(c))) return true;
+    if (!e[flag]) for (const c of codes) if (c !== e.keycode) down.delete(c);
   }
   const now = Date.now();
-  for (const [code, seen] of heldKeys) {
-    if (now - seen > 1000) heldKeys.delete(code);
-    else if (!own.includes(code)) return true;
-  }
-  return false;
+  for (const [c, seen] of down) if (!MOD_CODES.has(c) && now - seen > 1000) down.delete(c);
 }
-uIOhook.on('keydown', (e) => {
-  if (!MOD_CODES.has(e.keycode)) heldKeys.set(e.keycode, Date.now());
-  if (binding) {
-    const which = binding;
-    binding = false;
-    let error = null;
-    if (e.keycode !== UiohookKey.Escape) {
-      const info = keyInfo(e.keycode);
-      const other = which === 'hotkey' ? 'drawKey' : 'hotkey';
-      if (info.codes.some((c) => settings[other].codes.includes(c))) {
-        error = `${info.name} is already your ${KEY_LABEL[other]}. Pick a different one.`;
-      } else {
-        settings[which] = info;
-        writeJSON('settings.json', settings);
-      }
+const inCombo = (ch, code) => ch.codes.includes(code);
+const comboHeld = (ch) => ch.keys.every((k) => k.codes.some((c) => down.has(c)));
+// Anything held that isn't part of this combo means you're pressing a shortcut, not the combo.
+const othersHeld = (ch) => [...down.keys()].some((c) => !ch.codes.includes(c));
+
+// Two combos clash when they're the same keys (a key counts as the same if any of its codes match).
+const sameCombo = (a, b) => a.keys.length === b.keys.length && a.keys.every((k) => b.keys.some((j) => j.codes.some((c) => k.codes.includes(c))));
+
+// Choosing a combo: hold the keys together; letting go of any of them sets the combo. Esc on its own cancels.
+let bindKeys = [];
+function bindKeyDown(e) {
+  if (e.keycode === UiohookKey.Escape && !bindKeys.length) { finishBind(true); return; }
+  const info = keyInfo(e.keycode);
+  if (bindKeys.length >= 4 || bindKeys.some((k) => k.codes.some((c) => info.codes.includes(c)))) return;
+  bindKeys.push(info);
+  settingsWin?.webContents.send('bind:progress', { which: binding, keys: bindKeys });
+}
+function bindKeyUp(e) {
+  if (bindKeys.some((k) => k.codes.includes(e.keycode))) finishBind(false);
+}
+function finishBind(cancel) {
+  const which = binding;
+  const keys = bindKeys;
+  binding = false;
+  bindKeys = [];
+  let error = null;
+  if (!cancel && keys.length) {
+    const next = combo(keys);
+    const other = Object.keys(KEY_LABEL).find((k) => k !== which && sameCombo(next, keyOf(k)));
+    if (other) error = `${next.name} ${keys.length > 1 ? 'are' : 'is'} already your ${KEY_LABEL[other]}. Pick different keys.`;
+    else {
+      setKey(which, next);
+      writeJSON('settings.json', settings);
     }
-    settingsWin?.webContents.send('bind:done', { settings, which, error });
-    return;
   }
+  settingsWin?.webContents.send('bind:done', { settings, which, error });
+}
+
+// ---------- global input ----------
+// A wheel opens only when its whole combo is held and nothing else. If anything else is already held
+// (⌃, ⌘, ⇧, a letter…), you're pressing a shortcut, so the wheel stays shut until its keys are let go.
+let hotkeyBlocked = false; // the wheel key went down mid-shortcut: ignore it until it's let go
+
+// A combo that's part of a longer one (⌥ for one tool, ⌥⇧ for another) waits a moment before it acts,
+// so pressing the longer one quickly never sets off the shorter one first. Others act at once.
+const COMBO_WAIT = 110;
+const coversKeys = (big, small) => big.keys.length > small.keys.length &&
+  small.keys.every((k) => big.keys.some((j) => j.codes.some((c) => k.codes.includes(c))));
+const partOfLonger = (which) => Object.keys(KEY_LABEL).some((k) => k !== which && coversKeys(keyOf(k), keyOf(which)));
+let wheelWait = null, drawWait = null;
+function clearWaits(e, keyUp) {
+  // Another key turns it into a different combo; letting go of one of its keys means it was a tap.
+  const drop = (t, ch) => (t && (keyUp ? inCombo(ch, e.keycode) : !inCombo(ch, e.keycode)) ? (clearTimeout(t), null) : t);
+  wheelWait = drop(wheelWait, settings.hotkey);
+  drawWait = drop(drawWait, settings.drawKey);
+}
+function openWheelSoon() {
+  if (!partOfLonger('hotkey')) { holding = true; openMenu(); return; }
+  clearTimeout(wheelWait);
+  wheelWait = setTimeout(() => {
+    wheelWait = null;
+    if (menu.open || spin.open || spinTimer || !comboHeld(settings.hotkey) || othersHeld(settings.hotkey)) return;
+    holding = true;
+    openMenu();
+  }, COMBO_WAIT);
+}
+function penDownSoon() {
+  if (!partOfLonger('drawKey')) { penDown('key'); return; }
+  clearTimeout(drawWait);
+  drawWait = setTimeout(() => {
+    drawWait = null;
+    if (!menu.open && comboHeld(settings.drawKey)) penDown('key');
+  }, COMBO_WAIT);
+}
+
+uIOhook.on('keydown', (e) => {
+  noteKey(e, true);
+  if (binding) { bindKeyDown(e); return; }
+  clearWaits(e, false);
   if (away || awayBinding) return; // the Away screen is up (or its keys are being chosen): Scrawl sits still
+  if (spinKeyDown(e)) return; // Spin's key, or any key while Spin's wheel is up or about to open
   if (!settings.enabled) return; // turned off: every key goes untouched to your apps
   // ⌘Z / ⌘⇧Z undo and redo, but only with a pencil or eraser in hand (Scrawl can't stop the app
   // underneath from getting the keys too, and with a tool in hand you're drawing, not editing it).
@@ -433,36 +599,42 @@ uIOhook.on('keydown', (e) => {
     step(e.shiftKey ? 'redo' : 'undo');
     return;
   }
-  if (isDrawKey(e.keycode)) {
+  const wheel = settings.hotkey, draw = settings.drawKey;
+  if (inCombo(draw, e.keycode) && comboHeld(draw) && !(inCombo(wheel, e.keycode) && comboHeld(wheel))) {
     if (menu.open) closeMenu(false);
-    else penDown('key');
+    else penDownSoon();
     return;
   }
-  if (isHotkey(e.keycode)) {
+  if (inCombo(wheel, e.keycode)) {
     // Open whenever the wheel isn't already up. Don't trust `holding` here: tapping fast can make macOS
     // drop a key-up, which used to leave `holding` stuck on and the wheel never opening again.
     if (menu.open) return;
     if (hotkeyBlocked) return; // still held from inside a shortcut
-    if (otherKeysHeld(e)) { hotkeyBlocked = true; return; }
-    holding = true;
-    openMenu();
+    if (!comboHeld(wheel)) return; // the rest of the combo is on its way
+    if (othersHeld(wheel)) { hotkeyBlocked = true; return; }
+    openWheelSoon();
     return;
   }
+  if (inCombo(draw, e.keycode)) return; // part of the draw combo, the rest still to come
   // Any other key while the wheel is up means the user is typing a combo (⌥+letter) — get out of the way.
   if (menu.open) { closeMenu(false); return; }
   if (e.keycode === UiohookKey.Escape) dropTool();
 });
 uIOhook.on('keyup', (e) => {
-  heldKeys.delete(e.keycode);
-  if (isHotkey(e.keycode)) hotkeyBlocked = false;
+  noteKey(e, false);
+  if (binding) { bindKeyUp(e); return; }
+  clearWaits(e, true);
+  if (inCombo(settings.hotkey, e.keycode)) hotkeyBlocked = false;
+  if (inCombo(settings.spin.key, e.keycode)) { spinBlocked = false; spinKeyUp(); }
   if (away || awayBinding || !settings.enabled) return;
-  if (isDrawKey(e.keycode)) { penUp('key'); return; }
-  if (!isHotkey(e.keycode)) return;
+  if (inCombo(settings.drawKey, e.keycode)) penUp('key'); // letting go of any key in the combo lifts the pen
+  if (!inCombo(settings.hotkey, e.keycode)) return;
   holding = false;
   closeMenu(true);
 });
 // Mouse button 1 is left, 2 is right. Right-click puts the tool down.
 uIOhook.on('mousedown', (e) => {
+  if (spin.open || spinTimer) { cancelSpin(); return; } // a click while the music wheel is up: leave it be
   if (away || awayBinding || !settings.enabled || !activeTool || menu.open) return;
   if (e.button === 1) penDown('mouse');
   else if (e.button === 2) dropTool();
@@ -471,6 +643,193 @@ uIOhook.on('mouseup', (e) => {
   if (e.button === 1) penUp('mouse');
 });
 
+
+// ---------- Spin: the music wheel ----------
+// Hold the Spin key and the wheel opens at the pointer, after a moment (so a quick ⌘-shortcut made with
+// that key never flashes it). Slide to a slice or a song and let go. Letting go in the middle does nothing.
+const SPIN_DELAY = 110;
+let spinTimer = null;
+let spinBlocked = false; // the Spin key went down mid-shortcut: ignore it until it's let go
+
+function spinKeyDown(e) {
+  const key = settings.spin.key;
+  if (inCombo(key, e.keycode)) {
+    if (!settings.spin.enabled || binding) return false;
+    if (spin.open || spinTimer || spinBlocked) return true; // a held key repeats
+    if (!comboHeld(key)) return false; // the rest of the combo is on its way (and Scrawl may want this key)
+    if (othersHeld(key)) { spinBlocked = true; return true; }
+    if (menu.open) closeMenu(false);
+    Music.refresh(settings.spin.app); // start looking now; the wheel opens with what's known
+    spinTimer = setTimeout(() => { spinTimer = null; openSpin(); }, SPIN_DELAY);
+    return true;
+  }
+  // Another key: a shortcut, or a longer combo (maybe Scrawl's). Get out of the way and let it through.
+  if (spinTimer || spin.open) cancelSpin();
+  return false;
+}
+function spinKeyUp() {
+  if (spinTimer) { clearTimeout(spinTimer); spinTimer = null; return; } // a tap, not a hold
+  if (!spin.open) return;
+  closeSpin(true);
+}
+function cancelSpin() {
+  if (spinTimer) { clearTimeout(spinTimer); spinTimer = null; }
+  closeSpin(false);
+}
+
+// The songs the wheel shows each way, from the app's list and how far you've scrolled.
+function spinView() {
+  const L = Music.snapshot().list;
+  const n = settings.spin.count;
+  if (!L) return { up: [], back: [], upMore: false, upLess: false, backMore: false, backLess: false, total: 0, index: -1, offUp: 0, offBack: 0 };
+  const i = L.index;
+  const up = [], back = [];
+  for (let k = 0; k < n; k++) {
+    const u = i + 1 + spin.offUp + k;
+    if (u < L.items.length) up.push({ ...L.items[u], at: u });
+    const b = i - 1 - spin.offBack - k;
+    if (b >= 0) back.push({ ...L.items[b], at: b });
+  }
+  return {
+    up, back,
+    upMore: i + 1 + spin.offUp + n < L.items.length, upLess: spin.offUp > 0,
+    backMore: i - 1 - spin.offBack - n >= 0, backLess: spin.offBack > 0,
+    total: L.items.length, index: i, offUp: spin.offUp, offBack: spin.offBack, source: L.source, name: L.name || null,
+  };
+}
+function spinCtx(view = spinView()) {
+  return { prev: spin.hover, up: view.up.length, back: view.back.length, upMore: view.upMore, upLess: view.upLess, backMore: view.backMore, backLess: view.backLess };
+}
+function spinHit(p) {
+  return Spin.hitTest(settings.wheelSize, settings.spin.count, p.x - spin.x, p.y - spin.y, spinCtx());
+}
+const spinLayer = () => overlays.get(spin.displayId)?.webContents;
+function spinPayload() {
+  const snap = Music.snapshot();
+  return { np: snap.np, error: snap.error, app: settings.spin.app, linked: Music.spotifyAccount().connected, view: spinView(), volume: spin.vol ?? snap.np?.volume ?? null };
+}
+
+function openSpin() {
+  if (spin.open || !settings.spin.enabled) return;
+  penUp();
+  const p = screen.getCursorScreenPoint();
+  const d = screen.getDisplayNearestPoint(p);
+  const np = Music.snapshot().np;
+  Object.assign(spin, { open: true, x: p.x, y: p.y, displayId: String(d.id), hover: -1, offUp: 0, offBack: 0, vol0: np?.volume ?? null, vol: null });
+  syncOverlays();
+  const layer = overlays.get(spin.displayId);
+  if (layer && !layer.isDestroyed()) pinOverlay(layer);
+  spinLayer()?.send('spin:open', { ...toLocal(spin.displayId, p), size: settings.wheelSize, count: settings.spin.count, ...spinPayload() });
+  ensurePoll();
+}
+// Fresh news from the music app while the wheel is up: show it (keeping your place in the list).
+Music.onChange(() => {
+  if (!spin.open) return;
+  if (spin.vol0 == null) spin.vol0 = Music.snapshot().np?.volume ?? null;
+  clampSpinOffsets();
+  spinLayer()?.send('spin:data', spinPayload());
+});
+function clampSpinOffsets() {
+  const L = Music.snapshot().list;
+  if (!L) { spin.offUp = spin.offBack = 0; return; }
+  const n = settings.spin.count;
+  spin.offUp = Math.max(0, Math.min(spin.offUp, L.items.length - L.index - 1 - n));
+  spin.offBack = Math.max(0, Math.min(spin.offBack, L.index - n));
+}
+
+function spinHover(h) {
+  const prev = spin.hover;
+  spin.hover = h;
+  // Back in the middle: let go of everything, back to the song that's on and the volume you had.
+  if (h === -1) {
+    stopSpinScroll();
+    const moved = spin.offUp || spin.offBack;
+    spin.offUp = spin.offBack = 0;
+    if (spin.vol != null && spin.vol0 != null && spin.vol !== spin.vol0) Music.act(settings.spin.app, 'volume', spin.vol0);
+    spin.vol = null;
+    if (moved) spinLayer()?.send('spin:view', { view: spinView() });
+  }
+  if (Spin.isVol(h)) {
+    spin.vol = h - Spin.VOL;
+    Music.act(settings.spin.app, 'volume', spin.vol); // you hear it change as you slide
+  }
+  // Resting on an edge scrolls the list, faster the longer you stay.
+  const edge = { [Spin.UP_MORE]: ['up', 1], [Spin.UP_LESS]: ['up', -1], [Spin.BACK_MORE]: ['back', 1], [Spin.BACK_LESS]: ['back', -1] }[h];
+  if (edge) startSpinScroll(...edge);
+  else if (spin.scroll && h !== prev) stopSpinScroll();
+  spinLayer()?.send('spin:hover', { hover: h, volume: spin.vol ?? spin.vol0 });
+}
+function startSpinScroll(side, dir) {
+  if (spin.scroll?.side === side && spin.scroll?.dir === dir) return;
+  stopSpinScroll();
+  const s = { side, dir, n: 0, timer: null };
+  const tick = () => {
+    const key = side === 'up' ? 'offUp' : 'offBack';
+    const before = spin[key];
+    spin[key] += dir;
+    clampSpinOffsets();
+    if (spin[key] === before) { stopSpinScroll(); return; } // reached the end of the list
+    s.n++;
+    const view = spinView();
+    spinLayer()?.send('spin:view', { view, shift: { side, dir } });
+    // The edge may have gone (no more songs that way): look again at what's under the pointer.
+    const h = spinHit(screen.getCursorScreenPoint());
+    if (h !== spin.hover) { spinHover(h); if (spin.scroll !== s) return; }
+    s.timer = setTimeout(tick, Math.max(60, 170 - s.n * 12));
+  };
+  s.timer = setTimeout(tick, 260);
+  spin.scroll = s;
+}
+function stopSpinScroll() {
+  if (spin.scroll) clearTimeout(spin.scroll.timer);
+  spin.scroll = null;
+}
+
+function closeSpin(pick) {
+  if (!spin.open) return;
+  stopSpinScroll();
+  const p = screen.getCursorScreenPoint();
+  const h = spinHit(p);
+  const view = spinView();
+  const appId = settings.spin.app;
+  let choice = null;
+  if (pick) {
+    if (h === Spin.SLICE.play) choice = { cmd: 'toggle' };
+    else if (h === Spin.SLICE.next) choice = { cmd: 'next' };
+    else if (h === Spin.SLICE.prev) choice = { cmd: 'prev' };
+    else if (Spin.isVol(h)) choice = { cmd: 'volume', value: h - Spin.VOL };
+    else if (Spin.isBead(h)) {
+      const item = Spin.isUp(h) ? view.up[h - Spin.UP] : view.back[h - Spin.BACK];
+      if (item) choice = { cmd: 'play', at: item.at, side: Spin.isUp(h) ? 'up' : 'back', k: h - (Spin.isUp(h) ? Spin.UP : Spin.BACK) };
+    }
+  }
+  // Cancelled (or let go in the middle) after sliding the volume: put it back.
+  if (spin.vol != null && spin.vol0 != null && (!choice || choice.cmd !== 'volume') && h !== Spin.SLICE.volume) Music.act(appId, 'volume', spin.vol0);
+  spinLayer()?.send('spin:close', choice);
+  spin.open = false;
+  if (choice) {
+    if (choice.cmd === 'play') Music.playAt(appId, Music.snapshot().list, choice.at);
+    else if (choice.cmd === 'volume') Music.act(appId, 'volume', choice.value);
+    else Music.act(appId, choice.cmd);
+  }
+  syncOverlays();
+  ensurePoll();
+}
+
+ipcMain.handle('spin:status', async () => {
+  const snap = await Music.refresh(settings.spin.app);
+  return { ...snap, spotify: Music.spotifyAccount(), redirect: Music.REDIRECT };
+});
+ipcMain.handle('spotify:connect', async (_e, clientId) => {
+  const result = await Music.connectSpotify(clientId);
+  settingsWin?.show(); settingsWin?.focus(); // back from the browser
+  if (result.ok) Music.refresh(settings.spin.app);
+  return result;
+});
+ipcMain.on('spin:automation', () => shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Automation'));
+ipcMain.on('spin:dashboard', () => shell.openExternal('https://developer.spotify.com/dashboard'));
+ipcMain.on('clipboard:write', (_e, text) => { if (typeof text === 'string' && text.length < 200) clipboard.writeText(text); });
+ipcMain.handle('spotify:disconnect', () => { Music.disconnectSpotify(); return Music.spotifyAccount(); });
 
 // ---------- Away: blur every screen, hide the pointer, leave a note ----------
 // One window per screen, above everything (Scrawl's layers included). macOS blurs what's behind it
@@ -520,6 +879,7 @@ function frontApp() {
 function showAway(preview = false) {
   if (away) return;
   if (menu.open) closeMenu(false);
+  cancelSpin();
   penUp();
   if (activeTool) { activeTool = null; broadcast(); }
   binding = false;
@@ -655,6 +1015,11 @@ ipcMain.handle('settings:set', (_e, patch) => {
   writeJSON('settings.json', settings);
   if ('openAtLogin' in patch) app.setLoginItemSettings({ openAtLogin: settings.openAtLogin });
   if ('away' in patch) { registerAwayKey(); buildMenu(); }
+  if ('spin' in patch) {
+    if (!settings.spin.enabled) cancelSpin();
+    if (!SPIN_COUNTS.includes(settings.spin.count)) settings.spin.count = DEFAULTS.spin.count;
+    buildMenu();
+  }
   broadcast();
   return settings;
 });
@@ -676,11 +1041,21 @@ function setEnabled(on) {
   buildMenu();
   settingsWin?.webContents.send('settings:changed', settings);
 }
+function setSpinEnabled(on) {
+  settings = { ...settings, spin: { ...settings.spin, enabled: !!on } };
+  if (!on) cancelSpin();
+  writeJSON('settings.json', settings);
+  broadcast();
+  buildMenu();
+  settingsWin?.webContents.send('settings:changed', settings);
+}
 ipcMain.handle('bind:start', (_e, which) => {
   if (!hookOn) return false; // can't hear keys yet: the settings screen explains why
-  binding = which === 'drawKey' ? 'drawKey' : 'hotkey';
+  binding = which in KEY_LABEL ? which : 'hotkey';
+  bindKeys = [];
   penUp();
   if (menu.open) closeMenu(false);
+  cancelSpin();
   return true;
 });
 // The settings page measures itself, and the fixed-width window hugs that height.
@@ -711,6 +1086,25 @@ app.whenReady().then(() => {
   migrateFromScrawl();
   settings = { ...DEFAULTS, ...readJSON('settings.json', {}) };
   settings.away = { ...DEFAULTS.away, ...settings.away };
+  const firstSpin = !settings.spin;
+  settings.spin = { ...DEFAULTS.spin, ...settings.spin };
+  if (firstSpin) {
+    // Spotify if it's on this Mac, else Apple Music (always there).
+    const has = (name) => ['/Applications', path.join(app.getPath('home'), 'Applications')].some((d) => fs.existsSync(path.join(d, name)));
+    settings.spin.app = has('Spotify.app') ? 'spotify' : 'music';
+  }
+  if (!['spotify', 'music', 'other'].includes(settings.spin.app)) settings.spin.app = DEFAULTS.spin.app;
+  if (!SPIN_COUNTS.includes(settings.spin.count)) settings.spin.count = DEFAULTS.spin.count;
+  // Held keys are combos now; settings from before hold a single key.
+  settings.hotkey = asCombo(settings.hotkey);
+  settings.drawKey = asCombo(settings.drawKey);
+  settings.spin.key = asCombo(settings.spin.key);
+  // Spin's key can't be exactly one of Scrawl's (sharing some keys is fine): take a free right-hand modifier.
+  if (sameCombo(settings.spin.key, settings.hotkey) || sameCombo(settings.spin.key, settings.drawKey)) {
+    const free = [UiohookKey.MetaRight, UiohookKey.AltRight, UiohookKey.CtrlRight, UiohookKey.ShiftRight]
+      .map((c) => combo([keyInfo(c)])).find((c) => !sameCombo(c, settings.hotkey) && !sameCombo(c, settings.drawKey));
+    if (free) settings.spin.key = free;
+  }
   if (!Tools.TOOLS.some((t) => t.id === settings.page)) settings.page = DEFAULTS.page;
   if (!WHEEL_SIZES.includes(settings.wheelSize)) settings.wheelSize = DEFAULTS.wheelSize;
   // Keep the saved order, but make sure every built-in tool is present exactly once.
@@ -755,6 +1149,7 @@ function buildMenu() {
         { type: 'separator' },
         { label: 'Settings…', accelerator: 'Cmd+,', click: show },
         { label: settings.enabled ? 'Turn Scrawl Off' : 'Turn Scrawl On', click: () => setEnabled(!settings.enabled) },
+        { label: settings.spin.enabled ? 'Turn Spin Off' : 'Turn Spin On', click: () => setSpinEnabled(!settings.spin.enabled) },
         away
           ? { label: 'Come Back', click: hideAway }
           : { label: 'Step Away', accelerator: settings.away.keys.accelerator, registerAccelerator: false, click: () => showAway(false) },
@@ -789,5 +1184,5 @@ app.on('before-quit', () => {
 
 // Test hook: only present when SCRAWL_TEST is set (used by automated checks, never in normal runs).
 if (process.env.SCRAWL_TEST) {
-  global.__scrawlTest = { applyTool, step, setEnabled, overlays, menu, showAway, hideAway, awayWins: () => away?.wins ?? [], peek: () => ({ away: !!away, awayKey: awayKeyOn, activeTool, visible, menuOpen: menu.open, pencilColor: settings.pencilColor, enabled: settings.enabled, drawings, undo: history.undo.length, redo: history.redo.length }) };
+  global.__scrawlTest = { startBind: (w) => { binding = w; bindKeys = []; }, settings: () => settings, spin, openSpin, closeSpin, spinHover, spinView, Music, applyTool, step, setEnabled, overlays, menu, showAway, hideAway, awayWins: () => away?.wins ?? [], peek: () => ({ away: !!away, awayKey: awayKeyOn, activeTool, visible, menuOpen: menu.open, pencilColor: settings.pencilColor, enabled: settings.enabled, drawings, undo: history.undo.length, redo: history.redo.length }) };
 }

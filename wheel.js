@@ -10,11 +10,14 @@
     // Slightly curved arrows: back (undo) and forward (redo).
     undo: '<path d="M20 17Q18 8 7 9"/><path d="M11 5L7 9l4 4"/>',
     redo: '<path d="M4 17Q6 8 17 9"/><path d="M13 5l4 4-4 4"/>',
+    // The color picker: an eyedropper.
+    picker: '<path d="M14.6 3.6a2.4 2.4 0 0 1 3.4 0l2.4 2.4a2.4 2.4 0 0 1 0 3.4l-2.6 2.6-5.8-5.8z"/><path d="M10.6 5.4l8 8"/><path d="M13 9L5.4 16.6a2 2 0 0 0-.6 1.4v1.2h1.2a2 2 0 0 0 1.4-.6L15 11"/>',
   };
   // Path-only versions for drawing on a canvas (Path2D understands SVG path data).
   const CURSOR_PATHS = {
     pencil: ['M4 20l1.2-4.4L15.6 5.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.4 18.8z', 'M13.5 7.3l3.2 3.2'],
     eraser: ['M7 20.5h13', 'M3.8 15.2l9.4-9.4a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L11.6 19.4H8z', 'M8.6 10.4l5 5'],
+    picker: ['M14.6 3.6a2.4 2.4 0 0 1 3.4 0l2.4 2.4a2.4 2.4 0 0 1 0 3.4l-2.6 2.6-5.8-5.8z', 'M10.6 5.4l8 8', 'M13 9L5.4 16.6a2 2 0 0 0-.6 1.4v1.2h1.2a2 2 0 0 0 1.4-.6L15 11'],
   };
 
   // Ring tools. `weight` is the share of the circle: the pencil is a bit bigger, undo/redo are half-size.
@@ -39,7 +42,10 @@
     { hex: '#FFFFFF', lip: '#C6CFDB', name: 'White' },
   ];
   const COLOR_HOVER = 1000; // hover codes from 1000 up mean "pencil in COLORS[code - 1000]"
-  const colorIndex = (hex) => Math.max(0, COLORS.findIndex((c) => c.hex.toLowerCase() === String(hex).toLowerCase()));
+  // One past the last color: the color picker, which takes the pencil's color from the screen.
+  const PICK_HOVER = COLOR_HOVER + COLORS.length;
+  // -1 for a color that isn't one of COLORS (one taken with the picker).
+  const colorIndex = (hex) => COLORS.findIndex((c) => c.hex.toLowerCase() === String(hex).toLowerCase());
 
   // Chunky, Lull-style glyphs for the settings tiles: flat shapes with a darker lip underneath.
   const G = { ink: '#262B36', inkLip: '#0F1218', pink: '#F49CB0', pinkLip: '#D96F8A', sky: '#A9C1EC', skyLip: '#7F9BD1', paper: '#F3EEE6', paperLip: '#D8CFC2' };
@@ -127,7 +133,8 @@
 
   /**
    * The pencil's colors: dots on an arc just outside the pencil slice, with the current color in the
-   * middle, so flicking straight at the pencil keeps your color. Offsets are from the wheel's centre.
+   * middle, so flicking straight at the pencil keeps your color. The color picker comes last, past the
+   * clockwise end. Offsets are from the wheel's centre.
    */
   function colorRing(size, items, pencilColor) {
     const seg = layout(items).find((s) => s.id === 'pencil');
@@ -137,12 +144,13 @@
     const rc = R + dotR + Math.max(6, size * 0.08);
     const step = (dotR * 2 + Math.max(5, size * 0.06)) / rc; // angle between neighbouring dots
     const mid = Math.floor(COLORS.length / 2);
-    const current = colorIndex(pencilColor);
-    const dots = COLORS.map((_, k) => {
-      const ci = (current - mid + k + COLORS.length) % COLORS.length;
+    const current = Math.max(0, colorIndex(pencilColor));
+    const dot = (ci, k) => {
       const angle = seg.mid + (k - mid) * step;
       return { ci, k, angle, x: rc * Math.cos(angle), y: rc * Math.sin(angle) };
-    });
+    };
+    const dots = COLORS.map((_, k) => dot((current - mid + k + COLORS.length) % COLORS.length, k));
+    dots.push({ ...dot(COLORS.length, COLORS.length), pick: true });
     return { dots, dotR, rc, step, mid: seg.mid, R };
   }
 
@@ -158,7 +166,7 @@
     const ring = colorRing(size, items, pencilColor);
     if (ring && d > ring.R + 2 && d < ring.rc + ring.dotR + 16) {
       const k = Math.round(wrap(Math.atan2(dy, dx) - ring.mid) / ring.step) + Math.floor(COLORS.length / 2);
-      if (k >= 0 && k < COLORS.length) return COLOR_HOVER + ring.dots[k].ci;
+      if (k >= 0 && k < ring.dots.length) return COLOR_HOVER + ring.dots[k].ci; // the last dot is the picker
     }
     const segs = layout(items);
     const base = segs[0].start;
@@ -204,9 +212,16 @@
     const cr = colors && pencilColor ? colorRing(size, items, pencilColor) : null;
     if (cr) {
       const current = colorIndex(pencilColor);
-      ring = `<g class="colors">` + cr.dots.map(({ ci, k, x, y }) => {
+      ring = `<g class="colors">` + cr.dots.map(({ ci, k, x, y, pick }) => {
         const c = COLORS[ci], X = (cx + x).toFixed(2), Y = (cy + y).toFixed(2);
-        const sel = ci === current ? `<circle class="sel" cx="${X}" cy="${Y}" r="${(cr.dotR + 3.5).toFixed(2)}"/>` : '';
+        // A color from the picker is ringed on the picker itself.
+        const sel = ci === current || (pick && current < 0) ? `<circle class="sel" cx="${X}" cy="${Y}" r="${(cr.dotR + 3.5).toFixed(2)}"/>` : '';
+        if (pick) {
+          return `<g class="dot pick" data-c="${ci}" style="--k:${Math.abs(k - COLORS.length / 2 + 0.5)}">` +
+            `<circle class="pick-edge" cx="${X}" cy="${(cy + y + 2).toFixed(2)}" r="${cr.dotR.toFixed(2)}"/>` +
+            `<circle class="pick-top" cx="${X}" cy="${Y}" r="${cr.dotR.toFixed(2)}"/>` +
+            `${iconGroup('picker', cx + x, cy + y, cr.dotR * 1.3, 'pick-ico')}${sel}</g>`;
+        }
         const edge = c.hex === '#FFFFFF' ? ' stroke="#C6CFDB" stroke-width="1"' : '';
         return `<g class="dot" data-c="${ci}" style="--k:${Math.abs(k - cr.dots.length / 2 + 0.5)}">` +
           `<circle cx="${X}" cy="${(cy + y + 2).toFixed(2)}" r="${cr.dotR.toFixed(2)}" fill="${c.lip}"/>` +
@@ -217,7 +232,7 @@
     // The middle shows the icon of whatever you're pointing at (letting go there cancels).
     // Every icon is pre-placed so swaps can animate.
     const hubIcon = Math.max(14, hubR * 1.05);
-    const names = [...new Set(items.map((id) => look(id, visible).icon))];
+    const names = [...new Set([...items.map((id) => look(id, visible).icon), ...(cr ? ['picker'] : [])])];
     const hubIcons = names.map((name) => iconGroup(name, cx, cy, hubIcon, 'hub-ico', `data-icon="${name}"`)).join('');
     const hub =
       `<g class="hub"><circle class="hub-edge" cx="${cx}" cy="${cy + depth * 0.7}" r="${hubR}"/>` +
@@ -242,8 +257,9 @@
 
     // Middle icon: the tool you point at; over the middle itself, the tool in your hand, faded.
     const id = slice != null && slice >= 0 ? items[slice] : (hover === -1 && items.includes(active) ? active : null);
-    const name = id ? look(id, visible).icon : null;
-    const tint = isColor ? (COLORS[hover - COLOR_HOVER].hex === '#FFFFFF' ? '#9AA3B2' : COLORS[hover - COLOR_HOVER].hex) : '';
+    const isPick = hover === PICK_HOVER;
+    const name = isPick ? 'picker' : id ? look(id, visible).icon : null;
+    const tint = isColor && !isPick ? (COLORS[hover - COLOR_HOVER].hex === '#FFFFFF' ? '#9AA3B2' : COLORS[hover - COLOR_HOVER].hex) : '';
     svg.querySelectorAll('.hub-ico').forEach((g) => {
       const on = g.dataset.icon === name;
       g.classList.toggle('on', on);
@@ -252,7 +268,7 @@
     });
   }
 
-  const api = { ICONS, CURSOR_PATHS, TOOLS, COLORS, COLOR_HOVER, weight, look, icon, glyph, build, setHover, metrics, layout, colorRing, hitTest };
+  const api = { ICONS, CURSOR_PATHS, TOOLS, COLORS, COLOR_HOVER, PICK_HOVER, weight, look, icon, glyph, build, setHover, metrics, layout, colorRing, hitTest };
   if (typeof window !== 'undefined') window.Wheel = api;
   if (typeof module !== 'undefined') module.exports = api;
 })();

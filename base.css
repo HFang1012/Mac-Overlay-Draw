@@ -40,6 +40,24 @@
   --peach-lip: #E39C60;
 }
 
+/* Spin's theme: sage record-sleeve paper, deep green-black vinyl, a mustard label with mint. */
+[data-theme="spin"] {
+  --paper: #E4ECE3;
+  --paper-deep: #D3DFD2;
+  --card: #F8FBF6;
+  --card-lip: #D8E3D6;
+  --well: #ECF2EA;
+  --edge: #C3D2C1;
+  --ink: #1E2B27;
+  --ink-2: #5C6E67;
+  --accent: #FFC94D;
+  --accent-lip: #DDA21F;
+  --accent-soft: #FFF0C4;
+  --accent-ink: #8F6400;
+  --peach: #7ED3A8;     /* mint */
+  --peach-lip: #4DB283;
+}
+
 /* ---------- the wheel ---------- */
 .wheel { overflow: visible; display: block; }
 .wheel .slice, .wheel .wheel-body { transform-box: view-box; transform-origin: var(--cx) var(--cy); }
@@ -79,6 +97,12 @@
 .wheel .colors.show .dot { opacity: 1; transform: none; transition-delay: calc(var(--k) * 22ms); }
 .wheel .colors.show .dot.hot { transform: scale(1.32); transition-delay: 0ms; }
 .wheel .colors .sel { fill: none; stroke: var(--ink); stroke-width: 1.8; }
+/* The color picker: a paper dot with an eyedropper, past the end of the colors. */
+.wheel .colors .pick-top { fill: var(--card); transition: fill 140ms ease; }
+.wheel .colors .pick-edge { fill: var(--edge); transition: fill 140ms ease; }
+.wheel .colors .pick-ico { color: var(--ink); }
+.wheel .colors .pick.hot .pick-top { fill: var(--accent); }
+.wheel .colors .pick.hot .pick-edge { fill: var(--accent-lip); }
 .wheel .hub-ico { transition: opacity 120ms ease, transform 320ms var(--bouncy), color 140ms ease; }
 
 /* Opening: the wheel springs out of the cursor, slices land one after another. */
@@ -97,4 +121,56 @@
 
 @media (prefers-reduced-motion: reduce) {
   .wheel *, .wheel.enter *, .wheel.leave * { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+}
+
+
+/* ---------- Spin's music wheel (shares the wheel rules above) ---------- */
+/* Songs fan out beside next and previous as little records, one after another. Each record turns
+   about the wheel's centre when the list scrolls; its parts grow from their own centres. */
+.spin-wheel .beads .bead { transform-box: view-box; transform-origin: var(--cx) var(--cy); opacity: 0; transition: opacity 120ms ease; }
+.spin-wheel .beads.show .bead { opacity: 1; transition-delay: calc(var(--k) * 24ms); }
+.spin-wheel .beads .bead > * { transform-box: fill-box; transform-origin: center; transform: scale(0.2); transition: transform 300ms var(--bouncy); }
+.spin-wheel .beads.show .bead > * { transform: none; transition-delay: calc(var(--k) * 24ms); }
+.spin-wheel .beads.show .bead.hot > * { transform: scale(1.34); transition-delay: 0ms; }
+.spin-wheel .beads .nub { transform-box: fill-box; transform-origin: center; opacity: 0; transform: scale(0.2); transition: opacity 120ms ease, transform 300ms var(--bouncy); }
+.spin-wheel .beads.show .nub { opacity: 1; transform: none; transition-delay: calc(var(--k) * 24ms + 40ms); }
+.spin-wheel .beads.show .nub.hot { transform: scale(1.25); transition-delay: 0ms; }
+.spin-wheel .bead-lip { fill: #0B1210; }
+.spin-wheel .bead-ring { fill: none; stroke: var(--accent); stroke-width: 2.4; opacity: 0; }
+.spin-wheel .bead.hot .bead-ring { opacity: 1; }
+.spin-wheel .bead.picked .disc { animation: spin-picked 380ms var(--bouncy); }
+@keyframes spin-picked { 40% { transform: scale(1.5); } }
+.spin-wheel .vinyl { fill: #18221F; }
+.spin-wheel .groove { fill: none; stroke: rgba(255, 255, 255, 0.14); stroke-width: 1; }
+.spin-wheel .disc-hole { fill: var(--paper); }
+.spin-wheel .disc-rim { fill: none; stroke: rgba(11, 18, 16, 0.35); stroke-width: 1; }
+.spin-wheel .nub-top { fill: var(--card); transition: fill 140ms ease; }
+.spin-wheel .nub-edge { fill: var(--edge); transition: fill 140ms ease; }
+.spin-wheel .nub-ico { color: var(--ink); }
+.spin-wheel .nub.hot .nub-top { fill: var(--accent); }
+.spin-wheel .nub.hot .nub-edge { fill: var(--accent-lip); }
+.spin-wheel .nub.more.hot { animation: nub-nudge 520ms ease-in-out infinite; }
+@keyframes nub-nudge { 50% { opacity: 0.7; } }
+
+/* The volume arc comes out under the wheel. */
+.spin-wheel .vol { opacity: 0; transform-box: view-box; transform-origin: var(--cx) var(--cy); transform: scale(0.86); transition: opacity 140ms ease, transform 340ms var(--bouncy); }
+.spin-wheel .vol.show { opacity: 1; transform: none; }
+.spin-wheel .vol path { fill: none; stroke-linecap: round; }
+.spin-wheel .vol-lip { stroke: var(--card-lip); }
+.spin-wheel .vol-track { stroke: var(--card); }
+.spin-wheel .vol-fill { stroke: var(--peach); transition: stroke 140ms ease; }
+.spin-wheel .vol.hot .vol-fill { stroke: var(--accent); }
+.spin-wheel .vol-knob { fill: var(--ink); stroke: var(--card); stroke-width: 2.5; }
+
+/* The middle: the song that's on, turning like a record while it plays. */
+.spin-wheel .hub-now, .spin-wheel .hub-pick { transform-box: fill-box; transform-origin: center; transition: opacity 140ms ease, transform 320ms var(--bouncy); }
+.spin-wheel .hub-now.away { opacity: 0; transform: scale(0.6); }
+.spin-wheel .hub-now.turning .disc { transform-box: fill-box; transform-origin: center; animation: record 3.6s linear infinite; }
+@keyframes record { to { transform: rotate(360deg); } }
+.spin-wheel .hub-note { color: var(--ink-2); }
+.spin-wheel .hub-vol { fill: var(--ink); font-family: var(--font); font-weight: 800; opacity: 0; transition: opacity 120ms ease; font-variant-numeric: tabular-nums; }
+.spin-wheel .hub-vol.on { opacity: 1; }
+.spin-wheel.leave .beads, .spin-wheel.leave .vol { animation: wheel-out 170ms cubic-bezier(.5, 0, .9, .4) both; transform-box: view-box; transform-origin: var(--cx) var(--cy); }
+@media (prefers-reduced-motion: reduce) {
+  .spin-wheel .hub-now.turning .disc { animation: none; }
 }

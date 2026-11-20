@@ -1,7 +1,7 @@
 // The tool button in the top-right corner: pick which of Pane's tools the window shows.
 const switchBtn = document.getElementById('switchBtn');
 const switchMenu = document.getElementById('switchMenu');
-const PAGES = { scrawl: document.getElementById('page'), away: document.getElementById('awayPage') };
+const PAGES = { scrawl: document.getElementById('page'), away: document.getElementById('awayPage'), spin: document.getElementById('spinPage') };
 let currentPage = null;
 
 // Each tool in the menu: its glyph on a tile, name, one line about it, and a tick on the open one.
@@ -68,6 +68,7 @@ function showPage(id, animate) {
   items().forEach((b) => b.setAttribute('aria-checked', b.dataset.tool === id));
   labelButton(id, animate);
   if (typeof cancelAwayListening === 'function') cancelAwayListening();
+  if (listening) { stopListening(); scrawl.send('bind:cancel'); } // a held key being chosen on the page you're leaving
   if (S && S.page !== id) save({ page: id });
   if (!animate || !from) {
     for (const p of Object.values(PAGES)) p.hidden = p !== to;

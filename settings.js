@@ -10,22 +10,43 @@ async function save(patch) {
   update();
 }
 
-// ---------- keys: the wheel key and the draw key ----------
-const wells = [...document.querySelectorAll('.keywell')];
+// ---------- held keys: Scrawl's wheel key and draw key, and Spin's key ----------
+// (Away's keys are a shortcut, chosen in away-settings.js; its well has no data-which.)
+const wells = [...document.querySelectorAll('.keywell[data-which]')];
 const wellFor = (which) => wells.find((w) => w.dataset.which === which);
-const KEY_NAMES = { hotkey: 'Wheel key', drawKey: 'Draw key' };
-const DEFAULT_CAPTION = 'Click a key to change it.';
+const KEY_NAMES = { hotkey: 'Wheel key', drawKey: 'Draw key', spinKey: 'Spin key' };
+const DEFAULT_CAPTION = 'Click a key to change it. Hold several to use them together.';
 let listening = null; // which key is being chosen
+const keyOf = (which) => (which === 'spinKey' ? S.spin.key : S[which]);
 
+// One keycap per key in the combo. A key that counts on one side only (Spin's right ⌘) says which side.
+function keycaps(keys, { pop = false, held = false } = {}) {
+  return keys.map((k, i) => {
+    const word = k.symbol.length > 1;
+    const side = k.side ? `<small class="side">${k.side}</small>` : '';
+    return `<span class="keycap${word ? ' word' : ''}${k.side ? ' sided' : ''}${pop ? ' pop' : ''}${held ? ' held-key' : ''}" style="--d:${i * 50}ms" aria-hidden="true">${k.symbol}${side}</span>`;
+  }).join('');
+}
+const keysOf = (k) => (k?.keys?.length ? k.keys : k ? [k] : []);
+// "left ⌥", "left ⌃ + right ⌘": for status lines.
+const keyText = (k) => keysOf(k).map((x) => `${x.side ? `${x.side} ` : ''}${x.symbol}`).join(' + ');
 function renderKey(which, pop) {
-  const k = S[which];
+  const k = keyOf(which);
   const well = wellFor(which);
-  const word = k.symbol.length > 1;
-  well.querySelector('.keys').innerHTML = `<span class="keycap${word ? ' word' : ''}${pop ? ' pop' : ''}" aria-hidden="true">${k.symbol}</span>`;
+  if (!k || !well) return;
+  well.querySelector('.keys').innerHTML = keycaps(keysOf(k), { pop });
   well.setAttribute('aria-label', `${KEY_NAMES[which]}: ${k.name}. Click to change.`);
 }
-function setCaption(text, warn = false) {
-  const c = $('keycaption');
+// While choosing: the keys you're holding appear as you press them.
+scrawl.on('bind:progress', ({ which, keys }) => {
+  const well = wellFor(which);
+  if (!well || listening !== which) return;
+  well.querySelector('.keys').innerHTML = keycaps(keys, { pop: true, held: true });
+  setCaption(keys.length > 1 ? 'Let go to use these keys together.' : 'Add more keys, or let go to use this one.', false, which);
+});
+const captionFor = (which) => (which === 'spinKey' ? $('spinCaption') : $('keycaption'));
+function setCaption(text, warn = false, which = listening) {
+  const c = captionFor(which);
   c.textContent = text;
   c.classList.toggle('warn', warn);
 }
@@ -42,28 +63,28 @@ for (const well of wells) {
     }
     const ok = await scrawl.invoke('bind:start', which);
     if (!ok) {
-      setCaption('Allow Accessibility access first.', true);
+      setCaption('Allow Accessibility access first.', true, which);
       $('access').classList.add('open');
       shake($('access'));
       return;
     }
     listening = which;
     well.classList.add('listening');
-    well.querySelector('.keys').innerHTML = '<span class="prompt pop">Press a key</span>';
-    setCaption('Press a key. Esc cancels.');
+    well.querySelector('.keys').innerHTML = '<span class="prompt pop">Hold keys</span>';
+    setCaption('Hold one key, or a few together. Esc cancels.', false, which);
   });
 }
 function stopListening(popWhich = null) {
   for (const w of wells) w.classList.remove('listening');
   listening = null;
-  renderKey('hotkey', popWhich === 'hotkey');
-  renderKey('drawKey', popWhich === 'drawKey');
-  setCaption(DEFAULT_CAPTION);
+  for (const which of Object.keys(KEY_NAMES)) renderKey(which, popWhich === which);
+  setCaption(DEFAULT_CAPTION, false, 'hotkey');
+  setCaption(DEFAULT_CAPTION, false, 'spinKey');
 }
 scrawl.on('bind:done', ({ settings, which, error }) => {
   S = settings;
   stopListening(error ? null : which);
-  if (error) { setCaption(error, true); shake(wellFor(which)); }
+  if (error) { setCaption(error, true, which); shake(wellFor(which)); }
   updateStatus();
 });
 
@@ -294,11 +315,25 @@ function stepperText(el, v) {
   const i = values.indexOf(v);
   return labels ? labels[i] : `${v}${el.dataset.unit || ''}`;
 }
+// A stepper's key can reach into a tool's own settings: "spin.count" is S.spin.count.
+const getKey = (key) => key.split('.').reduce((o, k) => o?.[k], S);
+function patchFor(key, v) {
+  const [a, b] = key.split('.');
+  return b ? { [a]: { ...S[a], [b]: v } } : { [a]: v };
+}
+// Each stepper keeps the value it shows (`el._v`). Saves are async, so `S` lags behind fast clicks;
+// stepping from `S` would repeat the same value and pile up labels.
 function renderSteppers() {
   document.querySelectorAll('.stepper').forEach((el) => {
     const key = el.dataset.key;
     const values = el.dataset.values.split(',').map(Number);
-    let idx = Math.max(0, values.indexOf(S[key]));
+    // Nothing in flight and the value changed elsewhere (or first render): take it from the settings.
+    if (!el._pending && el._v !== getKey(key)) {
+      el._v = getKey(key);
+      const cur = el.querySelector('.val > span:not(.out)');
+      if (cur) cur.textContent = stepperText(el, values[Math.max(0, values.indexOf(getKey(key)))]);
+    }
+    let idx = Math.max(0, values.indexOf(el._v));
     if (!el.children.length) {
       el.innerHTML = `<button aria-label="Less">${minus}</button><span class="val" aria-live="polite"><span>${stepperText(el, values[idx])}</span></span><button aria-label="More">${plus}</button>`;
       const [dec, inc] = el.querySelectorAll('button');
@@ -317,17 +352,28 @@ const plus = '<svg width="11" height="11" viewBox="0 0 11 11"><path d="M2 5.5h7M
 function step(el, dir) {
   const key = el.dataset.key;
   const values = el.dataset.values.split(',').map(Number);
-  const idx = Math.max(0, values.indexOf(S[key])) + dir;
+  const idx = Math.max(0, values.indexOf(el._v)) + dir;
   if (idx < 0 || idx >= values.length) return;
+  el._v = values[idx];
   const val = el.querySelector('.val');
-  const old = val.firstElementChild;
+  // Labels still rolling away from earlier clicks go now, so only one old and one new are ever shown.
+  val.querySelectorAll(':scope > span.out').forEach((s) => s.remove());
+  const old = val.querySelector(':scope > span');
   const next = document.createElement('span');
   next.textContent = stepperText(el, values[idx]);
   val.appendChild(next);
-  old.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${-dir * 14}px)`, opacity: 0 }], { duration: 160, easing: 'ease-in', fill: 'forwards' })
-    .finished.then(() => old.remove());
+  if (old) {
+    old.classList.add('out');
+    old.animate([{ transform: 'none', opacity: 1 }, { transform: `translateY(${-dir * 14}px)`, opacity: 0 }], { duration: 160, easing: 'ease-in', fill: 'forwards' })
+      .finished.then(() => old.remove(), () => {});
+  }
   next.animate([{ transform: `translateY(${dir * 14}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 420, easing: BOUNCY });
-  save({ [key]: values[idx] });
+  // Buttons follow the shown value right away, not when the save comes back.
+  const [dec, inc] = el.querySelectorAll('button');
+  dec.disabled = idx === 0;
+  inc.disabled = idx === values.length - 1;
+  el._pending = (el._pending || 0) + 1;
+  save(patchFor(key, values[idx])).finally(() => { el._pending--; });
 }
 
 // ---------- login ----------
@@ -366,9 +412,10 @@ function updateStatus() {
   swapText($('statusText'), !enabled
     ? 'Off. Your keys work as normal.'
     : on
-      ? `On. Hold ${S.hotkey.symbol} for the wheel, ${S.drawKey.symbol} to draw.`
+      ? `On. Hold ${keyText(S.hotkey)} for the wheel, ${keyText(S.drawKey)} to draw.`
       : trusted ? 'Starting up…' : 'Waiting for Accessibility access.');
   if (typeof updateAwayStatus === 'function') updateAwayStatus();
+  if (typeof updateSpinStatus === 'function') updateSpinStatus();
 }
 async function pollStatus() {
   status = await scrawl.invoke('perm:check');
@@ -388,12 +435,13 @@ function update() {
   renderSteppers();
   document.querySelectorAll('.switch.login').forEach((b) => b.setAttribute('aria-checked', S.openAtLogin));
   if (typeof updateAway === 'function') updateAway();
+  if (typeof updateSpin === 'function') updateSpin();
 }
 
 scrawl.invoke('settings:get').then(({ settings, version }) => {
   S = settings;
   document.querySelectorAll('.version').forEach((v) => { v.textContent = version ? `Version ${version}` : ''; });
-  ['hotkey', 'drawKey'].forEach((which, i) => {
+  ['hotkey', 'drawKey', 'spinKey'].forEach((which, i) => {
     renderKey(which, true);
     wellFor(which).querySelector('.keycap').style.setProperty('--d', `${260 + i * 80}ms`);
   });

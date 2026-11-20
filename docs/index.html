@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pane</title>
-<meta name="description" content="Pane for Mac: Scrawl draws on your screen, Away blurs it while you're gone.">
+<meta name="description" content="Pane for Mac: Scrawl draws on your screen, Away blurs it while you're gone, Spin runs your music from a wheel.">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="icon.png">
 <meta property="og:title" content="Pane">
-<meta property="og:description" content="Draw on your screen. Blur it while you're away.">
+<meta property="og:description" content="Draw on your screen. Blur it while you're away. Spin your music from a wheel.">
 <meta property="og:image" content="icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,6 +27,13 @@
     --ink: #262B36; --ink-2: #5E6779;
     --accent: #F49CB0; --accent-lip: #D96F8A; --accent-soft: #FBE3E9; --accent-ink: #B54563;
     --stage-bg: linear-gradient(135deg, #CBD5E3, #DCE4EE 50%, #D7D2E4); --win: #FFFFFF; --bar: #E7ECF3; --line: #D5DCE6; --dark: #2C3240;
+  }
+  /* Spin's own theme: sage record-sleeve paper, green-black vinyl, a mustard label with mint. */
+  [data-theme="spin"] {
+    --paper: #E4ECE3; --paper-deep: #D3DFD2; --card: #F8FBF6; --card-lip: #D8E3D6; --well: #ECF2EA; --edge: #C3D2C1;
+    --ink: #1E2B27; --ink-2: #5C6E67;
+    --accent: #FFC94D; --accent-lip: #DDA21F; --accent-soft: #FFF0C4; --accent-ink: #8F6400; --mint: #7ED3A8; --mint-lip: #4DB283;
+    --stage-bg: linear-gradient(135deg, #CCDACB, #DFE8DD 50%, #D6DCCB); --win: #FDFEFC; --bar: #E7EEE5; --line: #D3DED1; --dark: #1E2B27;
   }
   :root {
     --font: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
@@ -118,10 +125,15 @@
   @keyframes wheel-out { to { transform: scale(0.4) rotate(18deg); opacity: 0; } }
 
   /* The pretend pointer inside each demo (your own pointer is never touched). */
-  .stage .cursor { position: absolute; left: 0; top: 0; z-index: 5; will-change: transform; pointer-events: none; }
-  .stage .cursor .arrow { display: block; transition: opacity 400ms ease, scale 400ms var(--bouncy); }
+  .stage .cursor { position: absolute; left: 0; top: 0; z-index: 5; will-change: transform; pointer-events: none; opacity: 0; transition: opacity 300ms ease; }
+  .stage .cursor.on { opacity: 1; }
+  /* The SVG's tip sits at (3, 2), so pull it back to make the tip the hot spot. Soft shadow like macOS. */
+  .stage .cursor .arrow {
+    display: block; margin: -2px 0 0 -3px; transform-origin: 3px 2px; filter: drop-shadow(0 1.5px 1.5px rgba(0, 0, 0, 0.32));
+    transition: opacity 400ms ease, scale 400ms var(--bouncy);
+  }
   .stage .cursor .chip {
-    position: absolute; left: 13px; top: 16px; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center;
+    position: absolute; left: 14px; top: 18px; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center;
     background: var(--accent); box-shadow: 0 2px 0 var(--accent-lip);
     opacity: 0; scale: 0.3; rotate: -20deg; transition: opacity 160ms ease, scale 380ms var(--bouncy), rotate 380ms var(--bouncy);
   }
@@ -150,13 +162,65 @@
   .keys { display: flex; justify-content: center; align-items: flex-end; gap: 14px; margin-top: 20px; flex-wrap: wrap; }
   .key { display: grid; justify-items: center; gap: 6px; }
   .key .cap {
-    min-width: 52px; height: 48px; padding: 0 12px; border-radius: 13px; display: grid; place-items: center;
+    min-width: 52px; height: 48px; padding: 0 12px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; gap: 3px;
     background: var(--well); box-shadow: 0 5px 0 var(--accent); font-size: 22px; font-weight: 800;
     transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
   }
   .key .cap.word { font-size: 15px; }
   .key .cap.down { transform: translateY(4px); box-shadow: 0 1px 0 var(--accent-lip); background: var(--accent-soft); }
+  .key .cap .side { align-self: flex-end; margin-bottom: 9px; font-size: 10px; font-weight: 800; color: var(--ink-2); }
   .key small { font-size: 12px; font-weight: 700; color: var(--ink-2); }
+
+  /* The keys are real: click one, hold new keys, let go. Same as Pane's settings. */
+  .keyset { display: contents; }
+  .key .caps { display: flex; gap: 6px; border-radius: 17px; outline: 2px dashed transparent; outline-offset: 6px; transition: outline-color 200ms ease; }
+  button.key { cursor: pointer; }
+  button.key:hover .cap:not(.down) { transform: translateY(-2px); box-shadow: 0 7px 0 var(--accent); }
+  button.key:active .cap { transform: translateY(4px); box-shadow: 0 1px 0 var(--accent-lip); }
+  button.key:hover small { color: var(--ink); }
+  .key.listening .caps { outline-color: var(--ink-2); }
+  .key .cap.prompt { padding: 0 16px; background: var(--accent-soft); box-shadow: 0 5px 0 var(--accent-lip); animation: breathe 1.3s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform: translateY(-2px); } }
+  .key .cap.pop { animation: key-pop 520ms var(--bouncy) both; animation-delay: var(--d, 0ms); }
+  @keyframes key-pop { from { opacity: 0; scale: 0.4; } }
+  .keys-tip { margin: 10px 0 0; text-align: center; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+  @media (hover: none) { .keys-tip { display: none; } } /* changing keys needs a keyboard */
+  .step.warn span { color: var(--accent-ink); }
+
+  /* Away's note, written by you in Try it. */
+  .note-field { display: grid; justify-items: center; gap: 6px; }
+  .note-field input {
+    width: min(290px, 72vw); height: 48px; padding: 0 14px; border: 0; border-radius: 13px; font: inherit; font-size: 15px; font-weight: 700; color: var(--ink);
+    background: var(--well); box-shadow: inset 0 3px 0 var(--card-lip); margin-bottom: 5px;
+  }
+  .note-field input::placeholder { color: var(--ink-2); opacity: 0.75; }
+  .note-field input:focus { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .note-field small { font-size: 12px; font-weight: 700; color: var(--ink-2); }
+
+  /* Watch or Try it: two keys side by side, the chosen one lit. */
+  .foot-r { display: flex; align-items: center; gap: 10px; }
+  .modes { display: inline-flex; gap: 4px; padding: 4px; border-radius: 15px; background: var(--well); margin-bottom: 4px; }
+  .modes button {
+    height: 28px; padding: 0 13px; border-radius: 11px; font-size: 13px; font-weight: 800; color: var(--ink-2);
+    transition: background 160ms ease, color 160ms ease, translate 220ms var(--bouncy), box-shadow 220ms var(--bouncy);
+  }
+  .modes button:hover { color: var(--ink); }
+  .modes button[aria-pressed="true"] { background: var(--accent); color: var(--ink); box-shadow: 0 3px 0 var(--accent-lip); translate: 0 -2px; }
+  .demo.trying .replay { display: none; }
+  .demo.trying .dots { visibility: hidden; }
+  /* Live: a ring says the screen is yours, and the pointer turns into whatever's in your hand. */
+  .demo .stage { transition: box-shadow 260ms ease; }
+  .demo.trying .stage { cursor: default; touch-action: none; user-select: none; -webkit-user-select: none; box-shadow: 0 5px 0 var(--card-lip), 0 0 0 3px var(--accent); }
+  .stage.live.pencil { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23FBF8F3' stroke='%232B2733' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M3 21l1.2-4.4L14.6 6.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L7.4 19.8z'/%3E%3C/svg%3E") 3 21, crosshair; }
+  .stage.live.eraser { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg transform='rotate(-30 14 14)'%3E%3Crect x='4' y='8.5' width='20' height='11' rx='3.5' fill='%23FBF8F3' stroke='%232B2733' stroke-width='2'/%3E%3Cpath d='M15 8.5v11' stroke='%232B2733' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E") 14 14, cell; }
+  .stage.live.away { cursor: none; }
+  .stage .ink { transition: opacity 220ms ease; }
+  .stage .ink.hidden { opacity: 0; }
+  .stage .ink path { transition: opacity 200ms ease; }
+  .stage .ink path.gone { opacity: 0; }
+  .stage .player.paused .prec { animation-play-state: paused; }
+  .stage .player .prec { transition: opacity 200ms ease; }
+  .stage .player.paused .prec { opacity: 0.6; }
   .step { text-align: center; font-size: 18px; font-weight: 800; margin: 14px 0 0; min-height: 27px; }
   .step span { display: inline-block; animation: step-in 420ms var(--bouncy); }
   @keyframes step-in { from { opacity: 0; transform: translateY(8px); } }
@@ -226,6 +290,206 @@
   footer { text-align: center; color: var(--ink-2); font-size: 14px; font-weight: 600; padding: 72px 24px 48px; }
   footer a { font-weight: 800; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 
+  /* ---------- toys in the margins ---------- */
+  /* Small pieces of Pane to play with, set beside the section each one belongs to. Extras only: hidden when there's no room. */
+  .toy { display: none; }
+  @media (min-width: 1300px) {
+    .hero, .tool, .route { position: relative; }
+    .toy { position: absolute; display: grid; justify-items: center; gap: 12px; width: 180px; }
+    .toy.l { right: calc(100% + 56px); }
+    .toy.r { left: calc(100% + 56px); }
+  }
+  .toy-cap { margin: 0; min-height: 20px; color: var(--ink-2); font-size: 13px; font-weight: 700; line-height: 1.4; text-align: center; }
+  .toy-cap span { display: inline-block; animation: step-in 420ms var(--bouncy); }
+
+  /* The wheel: flick or click it, and it lands on a tool. */
+  .spinner { width: 170px; height: 182px; touch-action: none; cursor: grab; border-radius: 50%; }
+  .spinner.held { cursor: grabbing; }
+  .spinner svg { display: block; width: 170px; height: 182px; overflow: visible; filter: drop-shadow(0 8px 14px rgba(43, 39, 51, 0.18)); }
+  .spinner .edges { pointer-events: none; }
+  .spinner .edge { fill: var(--edge); }
+  .spinner .top { fill: var(--card); transition: fill 140ms ease; }
+  .spinner .hot .top { fill: var(--accent); }
+  .spinner .edges .hot { fill: var(--accent-lip); }
+  .spinner .ico { color: var(--ink); }
+  .spinner .hub-top { fill: var(--card); }
+  .spinner .hub-edge { fill: var(--edge); }
+  .spinner .tick { fill: var(--ink); transform-box: fill-box; transform-origin: 50% 0; }
+  .spinner .tick.bump { animation: tick 360ms var(--bouncy); }
+  @keyframes tick { 40% { transform: scale(1.25, 0.8); } }
+
+  /* Paper for the ink pad and the eraser. */
+  .sheet { position: relative; width: 180px; height: 140px; border-radius: 18px; background: var(--card); box-shadow: 0 6px 0 var(--card-lip); overflow: hidden; }
+  .sheet canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .toy-pad { rotate: 2.5deg; }
+  .toy-pad canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23FBF8F3' stroke='%232B2733' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M3 21l1.2-4.4L14.6 6.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L7.4 19.8z'/%3E%3C/svg%3E") 3 21, crosshair; }
+  .sheet.wipe canvas { animation: wipe 380ms ease-in forwards; }
+  @keyframes wipe { to { opacity: 0; transform: translateX(14px) rotate(3deg); } }
+  .pad-tools { display: flex; align-items: center; gap: 10px; }
+  .swatch {
+    position: relative; width: 24px; height: 24px; border-radius: 50%; background: var(--c);
+    box-shadow: 0 3px 0 color-mix(in srgb, var(--c) 65%, black); transition: transform 180ms var(--bouncy), box-shadow 180ms var(--bouncy);
+  }
+  .swatch:hover { transform: translateY(-1px); }
+  .swatch[aria-pressed="true"] { transform: translateY(2px); box-shadow: 0 1px 0 color-mix(in srgb, var(--c) 65%, black); }
+  .swatch[aria-pressed="true"]::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--card); }
+  .pad-clear {
+    width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; margin-left: 4px;
+    background: var(--well); box-shadow: 0 3px 0 var(--card-lip); transition: transform 180ms var(--bouncy), box-shadow 180ms var(--bouncy);
+  }
+  .pad-clear:hover { transform: translateY(-1px); }
+  .pad-clear:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--card-lip); }
+
+  .toy-rub { rotate: -3deg; }
+  .toy-rub .sheet { cursor: none; }
+  .rubber {
+    position: absolute; left: 0; top: 0; width: 38px; height: 22px; margin: -11px 0 0 -19px; border-radius: 7px; pointer-events: none;
+    background: linear-gradient(90deg, var(--accent) 0 58%, var(--well) 58%); box-shadow: 0 4px 0 var(--accent-lip);
+    opacity: 0; rotate: -24deg; transition: opacity 150ms ease;
+  }
+  .toy-rub .sheet:hover .rubber { opacity: 1; }
+
+  /* Away's mug: steam rises while you point at it; click to take a sip. */
+  .mug { width: 132px; border-radius: 20px; }
+  .mug svg { display: block; width: 132px; height: auto; overflow: visible; transform-origin: 50% 90%; }
+  .mug .wisps { transition: opacity 500ms ease; }
+  .mug:hover .wisps path, .mug:focus-visible .wisps path { animation: steam 1.8s ease-in-out infinite; }
+  .mug .wisps path:nth-child(2) { animation-delay: -0.9s !important; }
+  .mug.empty .wisps { opacity: 0; }
+  @keyframes steam { 0% { transform: translateY(3px); opacity: 0; } 35% { opacity: 1; } 100% { transform: translateY(-7px); opacity: 0; } }
+
+  /* A tiny screen that blurs while you look away. */
+  .desk { display: grid; justify-items: center; }
+  .monitor { width: 180px; border-radius: 14px; }
+  .stage.mini { aspect-ratio: 16 / 10.5; border-radius: 14px; }
+  .stage.mini .win { border-radius: 6px; }
+  .stage.mini .win::before { height: 9px; }
+  .stage.mini .win i { height: 5px; border-radius: 3px; }
+  .stage.mini.away .bg { filter: blur(4px); }
+  .stage.mini .blob { filter: blur(10px); }
+  .stage.mini .note { width: 74%; padding: 8px 8px 7px; border-radius: 12px; }
+  .stage.mini .note svg { height: 18px; margin-bottom: 3px; }
+  .stage.mini .note b { font-size: 11px; }
+  .stage.mini .note small { margin-top: 4px; padding: 1px 7px; font-size: 9px; }
+  .neck { width: 26px; height: 16px; background: var(--edge); }
+  .foot { width: 84px; height: 9px; border-radius: 5px; background: var(--card); box-shadow: 0 4px 0 var(--card-lip); }
+
+  /* Drag Pane into Applications, like the disk image. */
+  .drop-row { display: flex; align-items: center; gap: 16px; }
+  .drop-icon { touch-action: none; cursor: grab; border-radius: 14px; position: relative; z-index: 2; }
+  .drop-icon.held { cursor: grabbing; }
+  .drop-icon img { display: block; width: 62px; height: 62px; pointer-events: none; filter: drop-shadow(0 6px 10px rgba(43, 39, 51, 0.18)); transition: translate 220ms var(--bouncy); }
+  .drop-icon:hover img { translate: 0 -3px; }
+  .drop-folder { width: 86px; height: 80px; transition: scale 260ms var(--bouncy); }
+  .drop-folder.near { scale: 1.12; }
+  .toy-drop.landed .folder-drop { animation: nudge 520ms var(--bouncy); }
+
+  /* Spin's turntable: point at it to play, drag the record to scratch, click for the next one. */
+  .deck { width: 180px; height: 150px; touch-action: none; cursor: grab; border-radius: 22px; }
+  .deck.held { cursor: grabbing; }
+  .deck svg { display: block; width: 180px; height: 150px; overflow: visible; }
+  .deck .plinth { fill: var(--card); }
+  .deck .plinth-lip { fill: var(--card-lip); }
+  .deck .vinyl-lip { fill: #0B1210; }
+  .deck .vinyl { fill: #1E2B27; }
+  .deck .groove { fill: none; stroke: rgba(255, 255, 255, 0.13); stroke-width: 1; }
+  .deck .shine { fill: none; stroke: rgba(255, 255, 255, 0.22); stroke-width: 3; stroke-linecap: round; }
+  .deck .label { fill: var(--c, #FFC94D); transition: fill 240ms ease; transform-box: fill-box; transform-origin: center; }
+  .deck .label-lip { fill: color-mix(in srgb, var(--c, #FFC94D) 72%, black); transition: fill 240ms ease; }
+  .deck .spindle { fill: #1E2B27; }
+  .deck .arm { transition: transform 520ms var(--bouncy); transform-box: view-box; transform-origin: 154px 26px; transform: rotate(-26deg); }
+  .deck.playing .arm { transform: rotate(0deg); }
+  .deck .arm-lip { stroke: var(--mint-lip, #4DB283); }
+  .deck .arm-top { stroke: var(--mint, #7ED3A8); }
+  .deck .pivot-lip { fill: var(--mint-lip, #4DB283); }
+  .deck .pivot { fill: var(--mint, #7ED3A8); }
+  .deck .note { fill: none; stroke: var(--mint-lip, #4DB283); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; animation: note-up 1500ms ease-out forwards; }
+  @keyframes note-up { from { opacity: 0; transform: translate(0, 6px) scale(0.6); } 25% { opacity: 1; } to { opacity: 0; transform: translate(var(--dx), -34px) rotate(var(--r)); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mug .wisps path { animation: none !important; }
+    .stage.mini .blob { animation: none; }
+  }
+
+  /* ---------- Spin's demo: the music wheel, records fanning out, the volume arc ---------- */
+  .stage .spin-wheel .slice, .stage .spin-wheel .wheel-body { transform-origin: var(--cx) var(--cy); }
+  .stage .spin-wheel.in { transform-origin: var(--cx) var(--cy); }
+  .stage .spin-wheel.out { transform-origin: var(--cx) var(--cy); }
+  .spin-wheel .hub-ico { transform-box: fill-box; transform-origin: center; color: var(--ink); opacity: 0; transform: scale(0.3) rotate(-25deg); transition: opacity 120ms ease, transform 320ms var(--bouncy); }
+  .spin-wheel .hub-ico.on { opacity: 1; transform: none; }
+  .spin-wheel .beads .bead { transform-box: view-box; transform-origin: var(--cx) var(--cy); opacity: 0; transition: opacity 120ms ease; }
+  .spin-wheel .beads.show .bead { opacity: 1; transition-delay: calc(var(--k) * 24ms); }
+  .spin-wheel .beads .bead > * { transform-box: fill-box; transform-origin: center; transform: scale(0.2); transition: transform 300ms var(--bouncy); }
+  .spin-wheel .beads.show .bead > * { transform: none; transition-delay: calc(var(--k) * 24ms); }
+  .spin-wheel .beads.show .bead.hot > * { transform: scale(1.34); transition-delay: 0ms; }
+  .spin-wheel .beads .nub { transform-box: fill-box; transform-origin: center; opacity: 0; transform: scale(0.2); transition: opacity 120ms ease, transform 300ms var(--bouncy); }
+  .spin-wheel .beads.show .nub { opacity: 1; transform: none; transition-delay: calc(var(--k) * 24ms + 40ms); }
+  .spin-wheel .beads.show .nub.hot { transform: scale(1.25); transition-delay: 0ms; }
+  .spin-wheel .bead-lip { fill: #0B1210; }
+  .spin-wheel .bead-ring { fill: none; stroke: var(--accent); stroke-width: 2.4; opacity: 0; }
+  .spin-wheel .bead.hot .bead-ring { opacity: 1; }
+  .spin-wheel .vinyl { fill: #18221F; }
+  .spin-wheel .groove { fill: none; stroke: rgba(255, 255, 255, 0.14); stroke-width: 1; }
+  .spin-wheel .disc-hole { fill: var(--paper); }
+  .spin-wheel .nub-top { fill: var(--card); }
+  .spin-wheel .nub-edge { fill: var(--edge); }
+  .spin-wheel .nub-ico { color: var(--ink); }
+  .spin-wheel .nub.hot .nub-top { fill: var(--accent); }
+  .spin-wheel .nub.hot .nub-edge { fill: var(--accent-lip); }
+  .spin-wheel .vol { opacity: 0; transform-box: view-box; transform-origin: var(--cx) var(--cy); transform: scale(0.86); transition: opacity 140ms ease, transform 340ms var(--bouncy); }
+  .spin-wheel .vol.show { opacity: 1; transform: none; }
+  .spin-wheel .vol path { fill: none; stroke-linecap: round; }
+  .spin-wheel .vol-lip { stroke: var(--card-lip); }
+  .spin-wheel .vol-track { stroke: var(--card); }
+  .spin-wheel .vol-fill { stroke: var(--mint); }
+  .spin-wheel .vol.hot .vol-fill { stroke: var(--accent); }
+  .spin-wheel .vol-knob { fill: var(--ink); stroke: var(--card); stroke-width: 2.5; }
+  .spin-wheel .hub-now, .spin-wheel .hub-pick { transform-box: fill-box; transform-origin: center; transition: opacity 140ms ease, transform 320ms var(--bouncy); }
+  .spin-wheel .hub-now.away { opacity: 0; transform: scale(0.6); }
+  .spin-wheel .hub-now.turning .disc { transform-box: fill-box; transform-origin: center; animation: record 3.6s linear infinite; }
+  @keyframes record { to { transform: rotate(360deg); } }
+  .spin-wheel .hub-vol { fill: var(--ink); font-family: var(--font); font-weight: 800; opacity: 0; transition: opacity 120ms ease; }
+  .spin-wheel .hub-vol.on { opacity: 1; }
+  /* The pill above the wheel: what you're pointing at. */
+  .stage .slabel {
+    position: absolute; left: 0; top: 0; z-index: 4; display: grid; justify-items: center; padding: 6px 12px 7px; border-radius: 14px; text-align: center;
+    background: var(--card); box-shadow: 0 4px 0 var(--card-lip), 0 10px 22px rgba(30, 43, 39, 0.18); white-space: nowrap;
+    opacity: 0; scale: 0.7; transition: opacity 120ms ease, scale 340ms var(--bouncy);
+  }
+  .stage .slabel.show { opacity: 1; scale: 1; }
+  .stage .slabel b { font-size: 13px; font-weight: 800; line-height: 1.25; }
+  .stage .slabel span { font-size: 11.5px; font-weight: 600; color: var(--ink-2); }
+  .stage .slabel span:empty { display: none; }
+  /* A music app's mini player, so you can see the song change. */
+  .stage .player {
+    position: absolute; right: 5%; bottom: 8%; width: min(36%, 240px); display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center;
+    padding: 10px 12px; border-radius: 14px; background: var(--dark); color: #EEF4EC; box-shadow: 0 8px 18px rgba(20, 28, 25, 0.22);
+  }
+  .stage .player .prec { width: 38px; height: 38px; border-radius: 50%; background: #121a17; display: grid; place-items: center; animation: record 3.6s linear infinite; }
+  .stage .player .prec i { width: 16px; height: 16px; border-radius: 50%; background: var(--c, #FFC94D); box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.06); }
+  .stage .player b { display: block; font-size: 13px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stage .player span { display: block; font-size: 11px; font-weight: 600; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stage .player .pvol { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+  .stage .player .pvol i { display: block; height: 100%; width: var(--v, 40%); background: var(--mint); border-radius: 3px; transition: width 120ms linear; }
+  .stage .player.swap > div { animation: step-in 420ms var(--bouncy); }
+  @media (max-width: 600px) { .stage .player { width: 44%; padding: 8px; } .stage .player .prec { width: 28px; height: 28px; } }
+  @media (prefers-reduced-motion: reduce) { .stage .player .prec, .spin-wheel .hub-now.turning .disc { animation: none; } }
+
+  /* ---------- boxes lift like a key under the pointer ---------- */
+  /* Rise by N px and grow the lip by the same N, so the bottom edge stays put, like the buttons. */
+  .quick, .demo, .route { transition: translate 260ms var(--bouncy), box-shadow 260ms var(--bouncy); }
+  .quick:hover, .route:hover { translate: 0 -4px; box-shadow: 0 11px 0 var(--card-lip), 0 18px 30px -10px rgba(43, 39, 51, 0.22); }
+  .demo:hover { translate: 0 -4px; box-shadow: 0 11px 0 var(--card-lip), 0 18px 30px -10px rgba(43, 39, 51, 0.22); }
+  .tool { box-shadow: 0 0 0 color-mix(in srgb, var(--paper-deep) 70%, var(--ink) 8%); transition: translate 300ms var(--bouncy), box-shadow 300ms var(--bouncy); }
+  .tool:hover { translate: 0 -3px; box-shadow: 0 6px 0 color-mix(in srgb, var(--paper-deep) 70%, var(--ink) 8%); }
+  .why, .disk, .alert { transition: translate 240ms var(--bouncy), box-shadow 240ms var(--bouncy); box-shadow: 0 0 0 var(--card-lip); }
+  .why:hover, .disk:hover, .alert:hover { translate: 0 -3px; box-shadow: 0 5px 0 var(--card-lip); }
+  .steps li::before { transition: translate 220ms var(--bouncy), box-shadow 220ms var(--bouncy); }
+  .steps li:hover::before { translate: 0 -2px; box-shadow: 0 6px 0 var(--card-lip); }
+  @media (hover: none), (prefers-reduced-motion: reduce) {
+    .quick:hover, .route:hover, .demo:hover, .tool:hover, .why:hover, .disk:hover, .alert:hover, .steps li:hover::before { translate: none; }
+  }
+
   .pop { animation: pop 700ms var(--bouncy) both; animation-delay: var(--d, 0ms); }
   @keyframes pop { from { opacity: 0; transform: translateY(12px) scale(0.6); } }
   .rise { animation: rise 600ms var(--smooth) both; animation-delay: var(--d, 0ms); }
@@ -241,6 +505,8 @@
     .stage { aspect-ratio: 4 / 3; }
     .key .cap { min-width: 44px; height: 42px; font-size: 19px; }
     .step { font-size: 16px; }
+    .demo-foot { gap: 8px; }
+    .modes button { padding: 0 10px; }
     .route { padding: 20px 16px 22px; }
     .cmd { flex-wrap: wrap; }
     .cmd code { flex-basis: 100%; padding: 6px 0; }
@@ -258,10 +524,22 @@
 </head>
 <body>
 <main>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="folderFront" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8FD3FF"/><stop offset="1" stop-color="#5DB6F3"/></linearGradient>
+    <g id="appsGlyph" fill="currentColor" stroke="none">
+      <path d="M62.6 50.2 l4.6 1.8 -15.4 38.6 -4.6 -1.8 z"/>
+      <path d="M47.2 88.8 L51.8 90.6 L48.2 95.2 Z"/>
+      <path d="M57.4 50.2 l-4.6 1.8 15.4 38.6 4.6 -1.8 z"/>
+      <path d="M49 76.6 h14.5 a1.6 1.6 0 0 1 0 3.2 H49 a1.6 1.6 0 0 1 0 -3.2 z"/>
+      <path d="M63.5 75 q7 -0.6 9.6 3.2 q-2.6 3.8 -9.6 3.2 z"/>
+    </g>
+  </defs>
+</svg>
   <section class="hero">
     <img class="icon pop" src="icon.png" alt="" width="128" height="128">
     <h1 class="rise" style="--d:120ms">Pane</h1>
-    <p class="lede rise" style="--d:200ms">Two small tools for your Mac. Scrawl draws on your screen. Away blurs it while you’re gone.</p>
+    <p class="lede rise" style="--d:200ms">Three small tools for your Mac. Scrawl draws on your screen. Away blurs it while you’re gone. Spin runs your music from a wheel. Change any shortcut to keys you like.</p>
 
     <div class="quick pop" style="--d:300ms">
       <p class="label">Install with one command <span class="badge">Recommended</span></p>
@@ -279,6 +557,21 @@
       </a>
     </div>
     <p class="fine rise" style="--d:420ms" id="fine">For Macs with Apple silicon. Free and open source.</p>
+
+    <div class="toy l toy-wheel" style="top: 24px">
+      <button class="spinner" type="button" aria-label="Spin Scrawl’s wheel"></button>
+      <p class="toy-cap" aria-live="polite"><span>Flick it, or click to spin</span></p>
+    </div>
+    <div class="toy r toy-pad" style="top: 210px">
+      <div class="sheet"><canvas aria-label="A little pad to draw on" role="img"></canvas></div>
+      <div class="pad-tools">
+        <button class="swatch" type="button" style="--c:#3A7BEA" aria-label="Blue ink" aria-pressed="true"></button>
+        <button class="swatch" type="button" style="--c:#F49CB0" aria-label="Pink ink" aria-pressed="false"></button>
+        <button class="swatch" type="button" style="--c:#2B2733" aria-label="Black ink" aria-pressed="false"></button>
+        <button class="pad-clear" type="button" aria-label="Clear the pad"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6.2 7l.9 12.5h9.8L17.8 7"/></svg></button>
+      </div>
+      <p class="toy-cap" aria-live="polite"><span>Point here to draw</span></p>
+    </div>
   </section>
 
   <section class="tools" aria-label="The tools">
@@ -297,11 +590,15 @@
           </div>
           <svg class="ink"><path/></svg>
           <div class="wheel-box"></div>
-          <div class="cursor"><svg class="arrow" width="17" height="24" viewBox="0 0 17 24"><path d="M1.5 1.5v17.2l4.3-4.1 3 6.9 3.1-1.3-3-6.8h6z" fill="#14161C" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="chip"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#262B36" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1.2-4.4L15.6 5.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.4 18.8z"/><path d="M13.5 7.3l3.2 3.2"/></svg></span></div>
+          <div class="cursor"><svg class="arrow" width="20" height="28" viewBox="0 0 20 28"><path d="M3 3.1C3 2.2 4 1.8 4.6 2.4L17 14.1C17.6 14.7 17.2 15.7 16.4 15.7H11.6L14.2 21.8C14.4 22.4 14.2 23 13.6 23.2L11.9 23.9C11.3 24.1 10.7 23.9 10.5 23.3L7.9 17.2L4.6 20.4C4 21 3 20.6 3 19.7Z" fill="#0E0F12" stroke="#FFFFFF" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"/></svg><span class="chip"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#262B36" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1.2-4.4L15.6 5.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.4 18.8z"/><path d="M13.5 7.3l3.2 3.2"/></svg></span></div>
         </div>
         <div class="keys"></div>
         <p class="step" aria-live="polite"></p>
         <div class="demo-foot"><div class="dots"></div><button class="replay" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4.5h4.5"/></svg>Replay</button></div>
+      </div>
+      <div class="toy l toy-rub" style="top: 90px" aria-hidden="true">
+        <div class="sheet"><canvas></canvas><span class="rubber"></span></div>
+        <p class="toy-cap"><span>Rub it out</span></p>
       </div>
     </article>
 
@@ -325,14 +622,47 @@
             <b>I’m away from my computer right now.</b>
             <small class="since">Away since 3:42 PM</small>
           </div>
-          <div class="cursor"><svg class="arrow" width="17" height="24" viewBox="0 0 17 24"><path d="M1.5 1.5v17.2l4.3-4.1 3 6.9 3.1-1.3-3-6.8h6z" fill="#14161C" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+          <div class="cursor"><svg class="arrow" width="20" height="28" viewBox="0 0 20 28"><path d="M3 3.1C3 2.2 4 1.8 4.6 2.4L17 14.1C17.6 14.7 17.2 15.7 16.4 15.7H11.6L14.2 21.8C14.4 22.4 14.2 23 13.6 23.2L11.9 23.9C11.3 24.1 10.7 23.9 10.5 23.3L7.9 17.2L4.6 20.4C4 21 3 20.6 3 19.7Z" fill="#0E0F12" stroke="#FFFFFF" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"/></svg></div>
         </div>
         <div class="keys"></div>
         <p class="step" aria-live="polite"></p>
         <div class="demo-foot"><div class="dots"></div><button class="replay" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4.5h4.5"/></svg>Replay</button></div>
       </div>
+      <div class="toy r toy-mug" style="top: 120px">
+        <button class="mug" type="button" aria-label="Take a sip">
+          <svg viewBox="0 -6 60 50" aria-hidden="true"><g class="wisps"><g transform="translate(0 3)" fill="none" stroke="#8E76DC" stroke-width="3.4" stroke-linecap="round"><path d="M21 12 q-3 -3 0 -6 t0 -6"/><path d="M31 12 q-3 -3 0 -6 t0 -6"/></g><g fill="none" stroke="#B9A5F4" stroke-width="3.4" stroke-linecap="round"><path d="M21 12 q-3 -3 0 -6 t0 -6"/><path d="M31 12 q-3 -3 0 -6 t0 -6"/></g></g><rect x="7" y="38" width="38" height="5" rx="2.5" fill="#16131C"/><rect x="7" y="36" width="38" height="5" rx="2.5" fill="#2B2733"/><g class="cup"><g transform="translate(0 3)" fill="#E39C60"><path d="M12 17 H40 V27 Q40 37 30 37 H22 Q12 37 12 27 Z"/><path d="M39 19.5 h3.5 a5.5 5.5 0 0 1 0 11 h-4 v-4 h4 a1.5 1.5 0 0 0 0 -3 h-3.5 z"/></g><g fill="#FFC593"><path d="M12 17 H40 V27 Q40 37 30 37 H22 Q12 37 12 27 Z"/><path d="M39 19.5 h3.5 a5.5 5.5 0 0 1 0 11 h-4 v-4 h4 a1.5 1.5 0 0 0 0 -3 h-3.5 z"/></g></g></svg>
+        </button>
+        <p class="toy-cap" aria-live="polite"><span>Click to sip</span></p>
+      </div>
     </article>
-    <p class="switch-note">Switch tools from the button in the corner of Pane’s window. Change the keys and your message there too.</p>
+    <article class="tool" data-theme="spin">
+      <div class="tool-head">
+        <svg viewBox="0 0 60 44" aria-hidden="true"><circle cx="26" cy="25" r="18" fill="#0B1210"/><circle cx="26" cy="22" r="18" fill="#1E2B27"/><circle cx="26" cy="22" r="12.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="1.4"/><circle cx="26" cy="23.5" r="7" fill="#DDA21F"/><circle cx="26" cy="22" r="7" fill="#FFC94D"/><circle cx="26" cy="22" r="1.8" fill="#1E2B27"/><g fill="#4DB283" stroke="#4DB283" transform="translate(0 2.5)"><path d="M50 5 L50 16 Q50 24 40 28" fill="none" stroke-width="4" stroke-linecap="round"/><circle cx="50" cy="6" r="4.5" stroke="none"/></g><g fill="#7ED3A8" stroke="#7ED3A8"><path d="M50 5 L50 16 Q50 24 40 28" fill="none" stroke-width="4" stroke-linecap="round"/><circle cx="50" cy="6" r="4.5" stroke="none"/></g></svg>
+        <h3>Spin</h3>
+        <p>Run your music from a wheel.</p>
+      </div>
+      <div class="demo" data-demo="spin">
+        <div class="stage" aria-hidden="true">
+          <div class="bg">
+            <div class="win v1"><i style="left:8%;top:28%;width:62%"></i><i style="left:8%;top:41%;width:78%"></i><i style="left:8%;top:54%;width:46%"></i></div>
+            <div class="win v3"></div>
+          </div>
+          <div class="player"><span class="prec"><i></i></span><div><b></b><span></span></div><span class="pvol"><i></i></span></div>
+          <div class="wheel-box"></div>
+          <div class="slabel"><b></b><span></span></div>
+          <div class="cursor"><svg class="arrow" width="20" height="28" viewBox="0 0 20 28"><path d="M3 3.1C3 2.2 4 1.8 4.6 2.4L17 14.1C17.6 14.7 17.2 15.7 16.4 15.7H11.6L14.2 21.8C14.4 22.4 14.2 23 13.6 23.2L11.9 23.9C11.3 24.1 10.7 23.9 10.5 23.3L7.9 17.2L4.6 20.4C4 21 3 20.6 3 19.7Z" fill="#0E0F12" stroke="#FFFFFF" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke"/></svg></div>
+        </div>
+        <div class="keys"></div>
+        <p class="step" aria-live="polite"></p>
+        <div class="demo-foot"><div class="dots"></div><button class="replay" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4.5h4.5"/></svg>Replay</button></div>
+      </div>
+      <div class="toy l toy-deck" style="top: 110px">
+        <button class="deck" type="button" aria-label="Next record"></button>
+        <p class="toy-cap" aria-live="polite"><span>Point here to play</span></p>
+      </div>
+      <p class="switch-note" style="margin-top:16px">Works with Spotify, Apple Music, or any player through the media keys. Link Spotify once to scroll its queue.</p>
+    </article>
+    <p class="switch-note">Every shortcut can be changed, in Pane and right here: click a key under any demo and hold new ones. Switch tools from the button in the corner of Pane’s window.</p>
   </section>
 
   <section class="install" aria-labelledby="install-title">
@@ -351,6 +681,45 @@
         <li><span><strong>Paste the command and press Return.</strong> Pane opens by itself when it’s done.</span></li>
         <li><span><strong>Turn on Pane in Accessibility</strong> when it asks (see below).</span></li>
       </ol>
+      <div class="toy l toy-screen" style="top: 20px">
+        <div class="desk">
+          <div class="monitor" tabindex="0" role="img" aria-label="A tiny screen that blurs while you look away">
+            <div class="stage mini away">
+              <div class="bg">
+                <div class="win v1"><i style="left:8%;top:30%;width:62%"></i><i style="left:8%;top:46%;width:78%"></i><i style="left:8%;top:62%;width:46%"></i></div>
+                <div class="win v2"><i style="left:8%;top:32%;width:70%"></i><i style="left:8%;top:50%;width:52%"></i></div>
+                <div class="win v3"></div>
+              </div>
+              <div class="tint"></div>
+              <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+              <div class="note">
+                <svg viewBox="0 0 60 44"><g fill="none" stroke="#B9A5F4" stroke-width="3.4" stroke-linecap="round"><path d="M21 12 q-3 -3 0 -6 t0 -6"/><path d="M31 12 q-3 -3 0 -6 t0 -6"/></g><rect x="7" y="36" width="38" height="5" rx="2.5" fill="#2B2733"/><g fill="#FFC593"><path d="M12 17 H40 V27 Q40 37 30 37 H22 Q12 37 12 27 Z"/><path d="M39 19.5 h3.5 a5.5 5.5 0 0 1 0 11 h-4 v-4 h4 a1.5 1.5 0 0 0 0 -3 h-3.5 z"/></g></svg>
+                <b>Back in a bit.</b>
+                <small class="since">Away since now</small>
+              </div>
+            </div>
+          </div>
+          <div class="neck"></div><div class="foot"></div>
+        </div>
+        <p class="toy-cap" aria-live="polite"><span>Point here to come back</span></p>
+      </div>
+      <div class="toy r toy-drop" style="top: 200px">
+        <div class="drop-row">
+          <button class="drop-icon" type="button" aria-label="Put Pane in Applications"><img src="icon.png" alt="" width="62" height="62"></button>
+          <svg class="drop-folder" viewBox="0 0 120 112" aria-hidden="true">
+            <g class="folder-drop">
+              <path d="M10 30 Q10 20 20 20 H45 Q51 20 54.5 24.5 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#2F86D6" transform="translate(0 6)"/>
+              <path d="M10 30 Q10 20 20 20 H45 Q51 20 54.5 24.5 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#4FA8EC"/>
+              <path d="M10 47 Q10 38 19 38 H101 Q110 38 110 47 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="url(#folderFront)"/>
+              <path d="M19 39.5 H101" stroke="#C9ECFF" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+              <g transform="translate(0 1.4)" opacity="0.55"><use href="#appsGlyph" color="#E4F5FF"/></g>
+              <use href="#appsGlyph" color="#2F86D6"/>
+
+            </g>
+          </svg>
+        </div>
+        <p class="toy-cap" aria-live="polite"><span>Drag Pane into the folder</span></p>
+      </div>
       <div class="why"><b>Why no security prompt?</b> macOS only checks apps that a web browser downloaded. This command downloads with <code>curl</code>, so macOS opens Pane straight away. Run the same command any time to update. Had Scrawl before? It replaces the old app and keeps your drawings.</div>
     </div>
 
@@ -369,10 +738,13 @@
           <div class="item">
             <svg class="folder" viewBox="0 0 120 112">
               <g class="folder-drop">
-                <path d="M10 30 Q10 20 20 20 H46 Q52 20 55 25 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#E39C60" transform="translate(0 6)"/>
-                <path d="M10 30 Q10 20 20 20 H46 Q52 20 55 25 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#F2B07A"/>
-                <path d="M10 46 Q10 38 18 38 H102 Q110 38 110 46 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#FFC593"/>
-                <g fill="none" stroke="#FBF8F3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"><path d="M48 88 L60 54 L72 88"/><path d="M52.5 76 H67.5"/></g>
+              <path d="M10 30 Q10 20 20 20 H45 Q51 20 54.5 24.5 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#2F86D6" transform="translate(0 6)"/>
+              <path d="M10 30 Q10 20 20 20 H45 Q51 20 54.5 24.5 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#4FA8EC"/>
+              <path d="M10 47 Q10 38 19 38 H101 Q110 38 110 47 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="url(#folderFront)"/>
+              <path d="M19 39.5 H101" stroke="#C9ECFF" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+              <g transform="translate(0 1.4)" opacity="0.55"><use href="#appsGlyph" color="#E4F5FF"/></g>
+              <use href="#appsGlyph" color="#2F86D6"/>
+
               </g>
             </svg>
             Applications
@@ -400,7 +772,7 @@
 
     <div class="route">
       <h3>Then: allow Accessibility</h3>
-      <p>Scrawl needs this to notice when you hold its keys. Away works without it.</p>
+      <p>Scrawl and Spin need this to notice when you hold their keys. Away works without it.</p>
       <ol class="steps">
         <li><span>Go to <span class="path"><span>System Settings</span>›<span>Privacy &amp; Security</span>›<span>Accessibility</span></span> and turn on <em>Pane</em>.</span></li>
         <li><span>Already on but Scrawl doesn’t react? Remove Pane with the <em>–</em> button and add it again. macOS treats each new version as a new app.</span></li>
@@ -413,6 +785,7 @@
   Pane is free. <a id="source" href="https://github.com/">See the code on GitHub</a>.
 </footer>
 
+<script src="spin.js"></script>
 <script>
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const isMac = /Macintosh|Mac OS X/.test(navigator.userAgent);
@@ -485,8 +858,8 @@
   })();
 
   // ---------- the demos ----------
-  // Each demo plays its tool step by step on a pretend screen, pressing the real default keys.
-  // Your own pointer is never hidden or moved; the arrow inside the screen is part of the picture.
+  // Each demo plays its tool step by step on a pretend screen, pressing the keys you've chosen (Pane's defaults
+  // to start). Try it hands the screen to you. Your own pointer is never moved; the arrow in Watch is part of the picture.
   const ICONS = {
     pencil: '<path d="M4 20l1.2-4.4L15.6 5.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.4 18.8z"/><path d="M13.5 7.3l3.2 3.2"/>',
     undo: '<path d="M20 17Q18 8 7 9"/><path d="M11 5L7 9l4 4"/>',
@@ -503,8 +876,10 @@
     let a = -Math.PI / 2 - (WHEEL[0][1] * unit) / 2;
     const pt = (rad, t) => `${(cx + rad * Math.cos(t)).toFixed(2)},${(cy + rad * Math.sin(t)).toFixed(2)}`;
     let out = '';
+    const spans = [];
     for (const [id, w] of WHEEL) {
       const s = a, e = a + w * unit; a = e;
+      spans.push({ id, s, e });
       const a0 = s + gap / R, a1 = e - gap / R, b0 = s + gap / r, b1 = e - gap / r;
       const d = `M${pt(R, a0)}A${R},${R} 0 0 1 ${pt(R, a1)}L${pt(r, b1)}A${r},${r} 0 0 0 ${pt(r, b0)}Z`;
       const m = (s + e) / 2, ir = (R + r) / 2, size = id === 'pencil' ? 16 : w < 1 ? 11 : 13;
@@ -514,64 +889,315 @@
     }
     out += `<circle class="hub-edge" cx="${cx}" cy="${cy + 3}" r="${r - 4}"/><circle class="hub-top" cx="${cx}" cy="${cy}" r="${r - 4}"/>`;
     const pencilMid = -Math.PI / 2;
-    return { html: `<svg class="wheel in" width="120" height="120" viewBox="0 0 120 120">${out}</svg>`, cx, cy, pick: { dx: ((R + r) / 2) * Math.cos(pencilMid), dy: ((R + r) / 2) * Math.sin(pencilMid) } };
+    return { html: `<svg class="wheel in" width="120" height="120" viewBox="0 0 120 120">${out}</svg>`, cx, cy, spans, pick: { dx: ((R + r) / 2) * Math.cos(pencilMid), dy: ((R + r) / 2) * Math.sin(pencilMid) } };
   }
 
-  function makeDemo(root, script) {
+  // ---------- keys you can change ----------
+  // The same rule as Pane's settings: click a key, hold one or a few together, and letting go of any sets them.
+  const MOD = { Control: '⌃', Alt: '⌥', Shift: '⇧', Meta: '⌘' };
+  const MOD_ORDER = ['Control', 'Alt', 'Shift', 'Meta'];
+  const NAMED = {
+    Space: 'Space', Enter: 'return', Tab: 'tab', Backspace: '⌫', Delete: '⌦', CapsLock: '⇪', Escape: 'esc',
+    ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', Home: 'home', End: 'end', PageUp: 'page up', PageDown: 'page down',
+    Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Backslash: '\\', Semicolon: ';', Quote: '\'', Comma: ',', Period: '.', Slash: '/',
+  };
+  const baseOf = (code) => code.replace(/(Left|Right)$/, '');
+  const isMod = (code) => baseOf(code) in MOD;
+  function keyFromEvent(e) {
+    const code = e.code || e.key, b = baseOf(code);
+    const sym = MOD[b] || NAMED[code] || (/^Key[A-Z]$/.test(code) ? code.slice(3) : /^Digit\d$/.test(code) ? code.slice(5)
+      : /^Numpad\d$/.test(code) ? code.slice(6) : /^F\d{1,2}$/.test(code) ? code : e.key && e.key.length === 1 ? e.key.toUpperCase() : code);
+    return { code, sym };
+  }
+  const rank = (k) => { const i = MOD_ORDER.indexOf(baseOf(k.code)); return i < 0 ? 9 : i; };
+  const sortKeys = (keys) => [...keys].sort((a, b) => rank(a) - rank(b));
+  const comboText = (keys) => {
+    const parts = keys.map((k) => (k.side ? `${k.side} ${k.sym}` : k.sym));
+    return parts.every((p) => p.length === 1) ? parts.join('') : parts.join(' + ');
+  };
+  const sameCombo = (a, b) => a.length === b.length && a.every((k) => b.some((j) => baseOf(j.code) === baseOf(k.code)));
+
+  // What's held right now. A key bound to one side (Spin's right ⌘) only counts on that side.
+  const held = new Set();
+  const keyHeld = (k) => (k.side ? held.has(k.code) : [...held].some((c) => baseOf(c) === baseOf(k.code)));
+  const comboHeld = (keys) => keys.every(keyHeld);
+  const inCombo = (keys, code) => keys.some((k) => (k.side ? k.code === code : baseOf(k.code) === baseOf(code)));
+  const othersHeld = (keys) => [...held].some((c) => !inCombo(keys, c));
+  // Modifiers follow the event's own flags, which stay accurate even when a key-up goes missing.
+  const FLAGS = { Control: 'ctrlKey', Alt: 'altKey', Shift: 'shiftKey', Meta: 'metaKey' };
+  function syncMods(e) { for (const c of [...held]) if (isMod(c) && c !== e.code && !e[FLAGS[baseOf(c)]]) held.delete(c); }
+
+  const DEMOS = [];
+  let listen = null; // { demo, id, keys } while a key is being chosen
+  const typingIn = (t) => !!t?.closest?.('input, textarea, [contenteditable="true"]');
+  addEventListener('keydown', (e) => {
+    if (listen) { e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) listen.demo.bindDown(e); return; }
+    syncMods(e);
+    if (!e.repeat) held.add(e.code);
+    let used = false;
+    for (const d of DEMOS) if (d.keyEvent(e, true, typingIn(e.target))) used = true;
+    if (used) e.preventDefault();
+  }, true);
+  addEventListener('keyup', (e) => {
+    if (listen) { e.preventDefault(); listen.demo.bindUp(e); return; }
+    held.delete(e.code);
+    if (baseOf(e.code) === 'Meta') for (const c of [...held]) if (!isMod(c)) held.delete(c); // macOS drops key-ups while ⌘ is down
+    syncMods(e);
+    for (const d of DEMOS) d.keyEvent(e, false, typingIn(e.target));
+  }, true);
+  addEventListener('blur', () => { held.clear(); listen?.demo.cancelBind(); for (const d of DEMOS) d.keyEvent(null, false, false); });
+  addEventListener('pointerdown', (e) => { if (listen && !e.target.closest('.key.listening')) listen.demo.cancelBind(); }, true);
+
+  const touchOnly = matchMedia('(hover: none)').matches;
+  const DEFAULT_NOTE = 'I’m away from my computer right now.';
+  let awayNote = DEFAULT_NOTE;
+
+  function makeDemo(root, def) {
     const stage = root.querySelector('.stage');
     const cursor = stage.querySelector('.cursor');
     const keysEl = root.querySelector('.keys'), stepEl = root.querySelector('.step'), dotsEl = root.querySelector('.dots');
-    let run = 0, timers = [], frame = 0, at = { x: 0, y: 0 }, playing = false;
-    const later = (ms, fn) => { const r = run; timers.push(setTimeout(() => { if (r === run) fn(); }, ms)); };
-    const stop = () => { run++; timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(frame); };
+    const binds = def.binds;
+    // `at` is where the pointer is headed; `cur` is where it is drawn right now. Every glide starts from `cur`,
+    // so a new move, a replay or a loop never makes the pointer jump.
+    let run = 0, timers = [], frame = 0, glide = 0, at = { x: 0, y: 0 }, cur = null, lead = 0, playing = false;
+    let mode = 'watch', ctrl = null, ids = [], noteT = 0, ac = null;
+    const later = (ms, fn) => { const r = run; timers.push(setTimeout(() => { if (r === run) fn(); }, ms + lead)); };
+    const stop = () => { run++; timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(frame); cancelAnimationFrame(glide); };
+    const show = (p) => { cur = p; cursor.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`; };
+    const ptr = { x: 0, y: 0, in: false }; // your own pointer over the screen, in Try it
+
+    // The keys under the screen are real keys: click one to change it.
+    const keySet = document.createElement('div'); keySet.className = 'keyset'; keysEl.append(keySet);
+    const tip = document.createElement('p'); tip.className = 'keys-tip';
+    tip.textContent = 'Click a key to change it. Pane’s settings work the same way.';
+    keysEl.after(tip);
+    const capsHtml = (keys, { pop = false, down = false } = {}) => keys.map((k, i) =>
+      `<span class="cap${k.sym.length > 1 ? ' word' : ''}${pop ? ' pop' : ''}${down ? ' down' : ''}" style="--d:${i * 50}ms">${k.sym}${k.side ? `<small class="side">${k.side}</small>` : ''}</span>`).join('');
+    function renderKeys(popId) {
+      keySet.innerHTML = ids.map((id) => {
+        const b = binds[id], caps = `<span class="caps">${capsHtml(b.keys, { pop: id === popId })}</span><small>${b.label}</small>`;
+        return b.fixed ? `<div class="key fixed" data-k="${id}">${caps}</div>`
+          : `<button class="key" type="button" data-k="${id}" aria-label="${b.label}: ${comboText(b.keys)}. Click to change it.">${caps}</button>`;
+      }).join('');
+    }
+    function stepSay(text, warn = false) {
+      stepEl.innerHTML = '<span></span>'; stepEl.firstChild.textContent = text;
+      stepEl.classList.toggle('warn', warn);
+    }
+    const shake = (el) => el?.animate([{ translate: '0' }, { translate: '-6px' }, { translate: '5px' }, { translate: '-3px' }, { translate: '0' }], { duration: 320, easing: 'ease-out' });
+    const resume = () => { if (mode === 'watch') api.play(); else ctrl?.refresh?.(); };
+    keySet.addEventListener('click', (e) => {
+      const el = e.target.closest('.key:not(.fixed)'); if (!el) return;
+      el.blur();
+      const id = el.dataset.k;
+      if (listen?.demo === api && listen.id === id) { api.cancelBind(); return; }
+      listen?.demo.cancelBind();
+      api.startBind(id);
+    });
+
     const api = {
-      stage, cursor, later,
+      stage, cursor, later, binds, ptr, keysEl,
       get run() { return run; },
+      get signal() { return ac?.signal; },
       size: () => ({ W: stage.clientWidth, H: stage.clientHeight }),
-      place(x, y) { at = { x, y }; cursor.getAnimations().forEach((a) => a.cancel()); cursor.style.transform = `translate(${x}px, ${y}px)`; },
+      combo: (id) => comboText(binds[id].keys),
+      place(x, y) { cancelAnimationFrame(glide); at = { x, y }; show({ x, y }); },
       move(x, y, ms = 600) {
-        const from = at; api.place(x, y);
-        cursor.animate([{ transform: `translate(${from.x}px, ${from.y}px)` }, { transform: `translate(${x}px, ${y}px)` }], { duration: ms, easing: 'cubic-bezier(.45,.05,.25,1)' });
+        cancelAnimationFrame(glide);
+        const from = cur || { x, y }; at = { x, y };
+        const dx = x - from.x, dy = y - from.y, dist = Math.hypot(dx, dy);
+        if (dist < 0.5 || reduce) { show({ x, y }); return; }
+        // A hand never pushes a mouse along a ruler: bow the path a little, quick off the mark, easing in to land.
+        const bow = Math.min(36, dist * 0.1) * (dx >= 0 ? 1 : -1);
+        const c = { x: from.x + dx / 2 + (dy / dist) * bow, y: from.y + dy / 2 - (dx / dist) * bow };
+        const t0 = performance.now();
+        const step = (now) => {
+          const k = Math.min(1, (now - t0) / ms), s = Math.pow(k, 0.78), e = s * s * (3 - 2 * s), u = 1 - e;
+          show({ x: u * u * from.x + 2 * u * e * c.x + e * e * x, y: u * u * from.y + 2 * u * e * c.y + e * e * y });
+          if (k < 1) glide = requestAnimationFrame(step);
+        };
+        glide = requestAnimationFrame(step);
+      },
+      // Where a run begins. On a replay or loop the pointer glides there first, and the script waits for it.
+      start(x, y) {
+        if (cur && !reduce && Math.hypot(cur.x - x, cur.y - y) > 2) { api.move(x, y, 800); lead = 850; }
+        else api.place(x, y);
+        cursor.classList.add('on');
       },
       get at() { return at; },
-      keys(list) { keysEl.innerHTML = list.map((k) => `<div class="key" data-k="${k.id}"><span class="cap${k.sym.length > 1 ? ' word' : ''}">${k.sym}</span><small>${k.label}</small></div>`).join(''); },
-      press(ids, down) { ids.forEach((id) => keysEl.querySelector(`[data-k="${id}"] .cap`)?.classList.toggle('down', down)); },
+      keys(list) { ids = list; renderKeys(); },
+      press(list, down) { list.forEach((id) => keySet.querySelectorAll(`[data-k="${id}"] .cap`).forEach((c) => c.classList.toggle('down', down))); },
       say(i, total, text) {
-        stepEl.innerHTML = `<span></span>`; stepEl.firstChild.textContent = text;
+        stepSay(text);
         dotsEl.innerHTML = Array.from({ length: total }, (_, k) => `<span class="${k === i ? 'on' : k < i ? 'done' : ''}"></span>`).join('');
       },
+      // Try it: one line of guidance, and short notes that hand back to it.
+      tell(text) { clearTimeout(noteT); stepSay(text); },
+      note(text, ms = 1700) { clearTimeout(noteT); stepSay(text); noteT = setTimeout(() => ctrl?.refresh?.(), ms); },
       setFrame(f) { frame = f; },
-      play() { stop(); playing = true; script(api); },
+      play() { stop(); lead = 0; playing = true; def.watch(api); },
       pause() { stop(); playing = false; },
       get playing() { return playing; },
+      get mode() { return mode; },
+
+      startBind(id) {
+        if (mode === 'watch') { api.pause(); api.press(ids, false); }
+        clearTimeout(noteT);
+        listen = { demo: api, id, keys: [] };
+        const el = keySet.querySelector(`[data-k="${id}"]`);
+        el.classList.add('listening');
+        el.querySelector('.caps').innerHTML = '<span class="cap word prompt">Hold keys</span>';
+        stepSay('Hold one key, or a few together. Esc cancels.');
+      },
+      bindDown(e) {
+        if (e.code === 'Escape' && !listen.keys.length) { api.cancelBind(); return; }
+        const k = keyFromEvent(e);
+        if (listen.keys.length >= 4 || listen.keys.some((j) => baseOf(j.code) === baseOf(k.code))) return;
+        listen.keys.push(k);
+        keySet.querySelector(`[data-k="${listen.id}"] .caps`).innerHTML = capsHtml(sortKeys(listen.keys), { pop: true, down: true });
+        stepSay(listen.keys.length > 1 ? 'Let go to use these keys together.' : 'Add more keys, or let go to use this one.');
+      },
+      bindUp(e) { if (listen.keys.some((k) => k.code === e.code)) api.finishBind(); },
+      cancelBind() {
+        if (listen?.demo !== api) return;
+        listen = null; renderKeys(); resume();
+      },
+      finishBind() {
+        const { id } = listen;
+        let keys = sortKeys(listen.keys);
+        listen = null;
+        // A lone modifier on the right counts on that side only, like Spin's right ⌘.
+        if (keys.length === 1 && isMod(keys[0].code) && /Right$/.test(keys[0].code)) keys = [{ ...keys[0], side: 'right' }];
+        else keys = keys.map(({ code, sym }) => ({ code, sym }));
+        const other = ids.find((o) => o !== id && sameCombo(binds[o].keys, keys));
+        const problem = other ? `That’s already the ${binds[other].label.toLowerCase()}.` : binds[id].rule?.(keys);
+        if (problem) {
+          renderKeys();
+          shake(keySet.querySelector(`[data-k="${id}"]`));
+          stepSay(problem, true);
+          clearTimeout(noteT); noteT = setTimeout(resume, 2400);
+          return;
+        }
+        binds[id].keys = keys;
+        renderKeys(id);
+        resume();
+      },
+
+      keyEvent(e, isDown, typing) {
+        if (mode !== 'try' || listen) return false;
+        // Only while you can see it: keys go to the screen you're looking at.
+        const r = stage.getBoundingClientRect();
+        if (r.bottom < innerHeight * 0.2 || r.top > innerHeight * 0.8) return false;
+        if (e && typing && !(e.ctrlKey || e.metaKey || e.altKey)) return false;
+        let used = false;
+        if (e && isDown && ctrl?.key?.(e)) used = true;
+        // Esc first, so it cancels before any key-up it implies can choose something.
+        if (e && isDown && e.code === 'Escape') { ctrl?.escape?.(); used = true; }
+        for (const id of ids) {
+          const b = binds[id];
+          if (e && inCombo(b.keys, e.code)) used = true;
+          const now = comboHeld(b.keys);
+          if (now !== !!b.was) { b.was = now; api.press([id], now); ctrl?.edge?.(id, now); }
+        }
+        return used;
+      },
+      setMode(m) {
+        if (m === mode) return;
+        if (listen?.demo === api) api.cancelBind();
+        mode = m;
+        modes.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+        root.classList.toggle('trying', m === 'try');
+        stage.classList.toggle('live', m === 'try');
+        clearTimeout(noteT);
+        if (m === 'try') {
+          stop(); playing = false; cur = null;
+          cursor.classList.remove('on', 'holding', 'gone');
+          for (const id of ids) binds[id].was = false;
+          api.press(ids, false);
+          dotsEl.innerHTML = '';
+          ac = new AbortController();
+          ctrl = def.try(api);
+          ctrl.refresh();
+        } else {
+          const c = ctrl; ctrl = null; c?.end?.(); ac?.abort(); ac = null;
+          stepEl.classList.remove('warn');
+          api.play();
+        }
+      },
     };
-    root.querySelector('.replay').addEventListener('click', () => api.play());
+
+    ids = def.ids; renderKeys(); // the keys show (and can be changed) before the demo first plays
+
+    // Watch or Try it, beside Replay.
+    const foot = root.querySelector('.demo-foot'), replay = foot.querySelector('.replay');
+    const modes = document.createElement('div');
+    modes.className = 'modes'; modes.setAttribute('role', 'group'); modes.setAttribute('aria-label', 'Watch the demo or try it yourself');
+    modes.innerHTML = '<button type="button" data-mode="watch" aria-pressed="true">Watch</button><button type="button" data-mode="try" aria-pressed="false">Try it</button>';
+    const right = document.createElement('div'); right.className = 'foot-r';
+    replay.before(right); right.append(modes, replay);
+    modes.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) api.setMode(b.dataset.mode); });
+    replay.addEventListener('click', () => api.play());
+
+    // Your pointer over the screen, for Try it.
+    const local = (e) => { const r = stage.getBoundingClientRect(); ptr.x = e.clientX - r.left; ptr.y = e.clientY - r.top; };
+    stage.addEventListener('pointerenter', (e) => { local(e); ptr.in = true; });
+    stage.addEventListener('pointermove', (e) => { local(e); ptr.in = true; ctrl?.move?.(e); });
+    stage.addEventListener('pointerleave', (e) => { if (!stage.hasPointerCapture?.(e.pointerId)) ptr.in = false; ctrl?.leave?.(e); });
+    stage.addEventListener('pointerdown', (e) => { local(e); ptr.in = true; ctrl?.down?.(e); });
+    stage.addEventListener('pointerup', (e) => ctrl?.up?.(e));
+    stage.addEventListener('pointercancel', (e) => ctrl?.up?.(e));
+    stage.addEventListener('contextmenu', (e) => { if (mode === 'try') { e.preventDefault(); ctrl?.context?.(e); } });
+
     // Play while on screen, rest while scrolled away.
     new IntersectionObserver((entries) => {
       const on = entries.some((e) => e.isIntersecting);
-      if (on && !api.playing) api.play();
-      if (!on && api.playing) api.pause();
+      if (mode !== 'watch') return;
+      if (on && !playing && !reduce) api.play();
+      if (!on && playing) api.pause();
     }, { threshold: 0.35 }).observe(stage);
+    DEMOS.push(api);
     return api;
   }
+
+  // Press and hold on a touch screen stands in for holding a key.
+  function longPress(e, ms, fire) {
+    if (e.pointerType === 'mouse') return () => {};
+    const x0 = e.clientX, y0 = e.clientY;
+    const t = setTimeout(fire, ms);
+    const cancel = () => { clearTimeout(t); removeEventListener('pointermove', check); removeEventListener('pointerup', cancel); };
+    const check = (m) => { if (Math.hypot(m.clientX - x0, m.clientY - y0) > 9) cancel(); };
+    addEventListener('pointermove', check); addEventListener('pointerup', cancel);
+    return cancel;
+  }
+
+  // ---------- Scrawl ----------
+  const SCRAWL_BINDS = {
+    wheel: { label: 'Wheel key', keys: [{ code: 'AltLeft', sym: '⌥' }] },
+    draw: { label: 'Draw key', keys: [{ code: 'ControlLeft', sym: '⌃' }] },
+    esc: { label: 'Put down', keys: [{ code: 'Escape', sym: 'esc' }], fixed: true },
+  };
+  const placeAt = (el, x, y) => { el.style.position = 'absolute'; el.style.left = `${x}px`; el.style.top = `${y}px`; };
 
   function scrawlScript(d) {
     const { stage, cursor } = d;
     const { W, H } = d.size();
     const box = stage.querySelector('.wheel-box');
-    const ink = stage.querySelector('.ink path');
-    stage.querySelector('.ink').setAttribute('viewBox', `0 0 ${W} ${H}`);
-    box.innerHTML = ''; ink.setAttribute('d', ''); cursor.classList.remove('holding');
-    d.keys([{ id: 'wheel', sym: '⌥', label: 'Wheel key' }, { id: 'draw', sym: '⌃', label: 'Draw key' }, { id: 'esc', sym: 'esc', label: 'Put down' }]);
+    const svgInk = stage.querySelector('.ink');
+    svgInk.setAttribute('viewBox', `0 0 ${W} ${H}`); svgInk.classList.remove('hidden');
+    svgInk.innerHTML = '<path/>';
+    const ink = svgInk.firstChild;
+    box.innerHTML = ''; cursor.classList.remove('holding');
+    d.keys(['wheel', 'draw', 'esc']);
+    const wk = d.combo('wheel'), dk = d.combo('draw');
     const c = { x: Math.round(W * 0.34), y: Math.round(H * 0.52) };
     const w = wheelSvg();
     const pick = { x: c.x + w.pick.dx, y: c.y + w.pick.dy };
     const total = 4;
-    d.place(W * 0.82, H * 0.82);
-    d.say(0, total, 'Hold ⌥ to open the wheel at your pointer.');
+    d.start(W * 0.82, H * 0.82);
+    d.say(0, total, `Hold ${wk} to open the wheel at your pointer.`);
     d.later(250, () => d.move(c.x, c.y, 700));
-    d.later(1050, () => { d.press(['wheel'], true); box.innerHTML = w.html; box.firstChild.style.transform = `translate(${c.x - w.cx}px, ${c.y - w.cy}px)`; box.firstChild.style.position = 'absolute'; });
-    d.later(2300, () => { d.say(1, total, 'Slide to the pencil, then let go of ⌥.'); d.move(pick.x, pick.y, 450); });
+    d.later(1050, () => { d.press(['wheel'], true); box.innerHTML = w.html; placeAt(box.firstChild, c.x - w.cx, c.y - w.cy); });
+    d.later(2300, () => { d.say(1, total, `Slide to the pencil, then let go of ${wk}.`); d.move(pick.x, pick.y, 450); });
     d.later(2650, () => box.querySelector('[data-id="pencil"]')?.classList.add('hot'));
     d.later(3500, () => {
       d.press(['wheel'], false);
@@ -580,10 +1206,10 @@
       setTimeout(() => { box.innerHTML = ''; }, 200);
     });
     d.later(4400, () => {
-      d.say(2, total, 'Drag to draw, or hold ⌃ and move.');
+      d.say(2, total, `Drag to draw, or hold ${dk} and move.`);
       d.press(['draw'], true);
       const s = Math.min(1.4, W / 520);
-      const o = { x: d.at.x - 10, y: d.at.y + 26 };
+      const o = { ...d.at }; // the ink starts right at the pointer
       ink.setAttribute('d', `M${o.x} ${o.y} c${30 * s} ${40 * s} ${100 * s} ${50 * s} ${122 * s} ${8 * s} c${15 * s} ${-30 * s} ${-14 * s} ${-60 * s} ${-36 * s} ${-40 * s} c${-22 * s} ${20 * s} ${8 * s} ${74 * s} ${62 * s} ${72 * s} c${34 * s} ${-1 * s} ${56 * s} ${-24 * s} ${70 * s} ${-50 * s}`);
       const len = ink.getTotalLength();
       ink.style.strokeDasharray = len; ink.style.strokeDashoffset = len;
@@ -603,32 +1229,803 @@
     d.later(10000, () => d.play());
   }
 
+  // Your turn: the real wheel at your pointer, a pencil, an eraser, undo, redo, hide and clear.
+  function scrawlTry(d) {
+    const { stage, ptr } = d;
+    const box = stage.querySelector('.wheel-box'), svgInk = stage.querySelector('.ink');
+    const NS = 'http://www.w3.org/2000/svg';
+    const { W, H } = d.size();
+    svgInk.setAttribute('viewBox', `0 0 ${W} ${H}`); svgInk.innerHTML = ''; svgInk.classList.remove('hidden');
+    box.innerHTML = '';
+    d.keys(['wheel', 'draw', 'esc']);
+    let tool = null, wheel = null, hot = null, stroke = null, dragging = false, pen = false, hidden = false, cancelPress = () => {}, touchWheel = false;
+    const strokes = [], undone = [];
+    const wk = () => d.combo('wheel'), dk = () => d.combo('draw');
+
+    const guide = () => {
+      if (wheel) return d.tell(touchWheel ? 'Slide to a tool and lift your finger.' : `Slide to a tool, then let go of ${wk()}.`);
+      if (tool === 'pencil') return d.tell(touchOnly ? 'Drag to draw. Press and hold for the wheel.' : `Drag to draw, or hold ${dk()} and move. Esc puts it down.`);
+      if (tool === 'eraser') return d.tell(touchOnly ? 'Drag over a line to rub it out.' : 'Drag over a line to rub it out. Esc puts it down.');
+      d.tell(touchOnly ? 'Press and hold the screen to open the wheel.' : `Point at the screen and hold ${wk()}.`);
+    };
+    const setTool = (t) => {
+      tool = t;
+      stage.classList.toggle('pencil', t === 'pencil');
+      stage.classList.toggle('eraser', t === 'eraser');
+    };
+
+    // Ink: smooth curves through the points you drew.
+    const draw = (s) => {
+      const p = s.pts, f = (n) => n.toFixed(1);
+      let path = `M${f(p[0].x)} ${f(p[0].y)}`;
+      if (p.length === 1) path += 'l0.1 0';
+      for (let i = 1; i < p.length; i++) path += `Q${f(p[i - 1].x)} ${f(p[i - 1].y)} ${f((p[i - 1].x + p[i].x) / 2)} ${f((p[i - 1].y + p[i].y) / 2)}`;
+      if (p.length > 1) path += `L${f(p[p.length - 1].x)} ${f(p[p.length - 1].y)}`;
+      s.el.setAttribute('d', path);
+    };
+    const startStroke = () => {
+      if (hidden) { hidden = false; svgInk.classList.remove('hidden'); }
+      const el = document.createElementNS(NS, 'path');
+      svgInk.append(el);
+      stroke = { el, pts: [{ x: ptr.x, y: ptr.y }] }; draw(stroke);
+      undone.length = 0;
+    };
+    const addPoint = () => {
+      if (!stroke) return;
+      const q = stroke.pts[stroke.pts.length - 1];
+      if (Math.hypot(ptr.x - q.x, ptr.y - q.y) < 1.5) return;
+      stroke.pts.push({ x: ptr.x, y: ptr.y }); draw(stroke);
+    };
+    const endStroke = () => { if (stroke) { strokes.push(stroke); stroke = null; } };
+    const rub = () => {
+      for (const s of [...strokes]) {
+        if (!s.pts.some((q) => Math.hypot(q.x - ptr.x, q.y - ptr.y) < 15)) continue;
+        strokes.splice(strokes.indexOf(s), 1);
+        s.el.classList.add('gone'); setTimeout(() => s.el.remove(), 220);
+        undone.length = 0;
+      }
+    };
+    const undo = () => {
+      const s = strokes.pop(); if (!s) return d.note('Nothing to undo yet.');
+      s.el.remove(); undone.push(s); d.note('Undone.');
+    };
+    const redo = () => {
+      const s = undone.pop(); if (!s) return d.note('Nothing to redo.');
+      svgInk.append(s.el); strokes.push(s); d.note('Redone.');
+    };
+
+    // The wheel opens where your pointer is.
+    const openWheel = (byTouch = false) => {
+      if (wheel) return;
+      if (!ptr.in) return d.tell(`Point at the screen first, then hold ${wk()}.`);
+      endStroke(); dragging = false; pen = false;
+      const w = wheelSvg();
+      box.innerHTML = w.html;
+      const el = box.firstChild; placeAt(el, ptr.x - w.cx, ptr.y - w.cy);
+      wheel = { w, el, c: { x: ptr.x, y: ptr.y } }; hot = null; touchWheel = byTouch;
+      guide();
+    };
+    const hoverWheel = () => {
+      if (!wheel) return;
+      const dx = ptr.x - wheel.c.x, dy = ptr.y - wheel.c.y;
+      let id = null;
+      if (Math.hypot(dx, dy) >= 17) { // the middle cancels
+        const s0 = wheel.w.spans[0].s;
+        let a = Math.atan2(dy, dx);
+        while (a < s0) a += Math.PI * 2;
+        while (a >= s0 + Math.PI * 2) a -= Math.PI * 2;
+        id = wheel.w.spans.find((sp) => a >= sp.s && a < sp.e)?.id ?? null;
+      }
+      if (id === hot) return;
+      hot = id;
+      wheel.el.querySelectorAll('.slice').forEach((g) => g.classList.toggle('hot', g.dataset.id === id));
+    };
+    const closeWheel = (act) => {
+      if (!wheel) return;
+      const { el } = wheel, id = hot;
+      wheel = null; hot = null; touchWheel = false;
+      el.classList.remove('in'); el.classList.add('out'); setTimeout(() => el.remove(), 200);
+      if (!act || !id) return guide();
+      if (id === 'pencil' || id === 'eraser') { setTool(id); return guide(); }
+      if (id === 'undo') undo();
+      else if (id === 'redo') redo();
+      else if (id === 'hide') {
+        hidden = !hidden; svgInk.classList.toggle('hidden', hidden);
+        d.note(hidden ? 'Drawings hidden. Pick it again to show them.' : 'Drawings back.', 2200);
+      } else if (id === 'clear') {
+        if (!strokes.length) return d.note('Nothing to clear yet.');
+        for (const s of strokes) { s.el.classList.add('gone'); setTimeout(() => s.el.remove(), 220); }
+        strokes.length = 0; undone.length = 0; d.note('Cleared.');
+      }
+    };
+
+    return {
+      refresh: guide,
+      edge(id, down) {
+        if (id === 'wheel') {
+          if (down) { if (!othersHeld(d.binds.wheel.keys)) openWheel(); }
+          else closeWheel(true);
+        } else if (id === 'draw') {
+          if (down) {
+            if (wheel) return closeWheel(false);
+            if (!tool) return d.note(`Pick the pencil from the wheel first. Hold ${wk()}.`, 2200);
+            if (!ptr.in) return;
+            pen = true; if (tool === 'pencil') startStroke(); else rub();
+          } else { pen = false; if (!dragging) endStroke(); }
+        }
+      },
+      // ⌘Z and ⌘⇧Z undo and redo while a tool is in hand, as in the app.
+      key(e) {
+        if (!tool || wheel || e.code !== 'KeyZ' || !e.metaKey) return false;
+        if (e.shiftKey) redo(); else undo();
+        return true;
+      },
+      escape() {
+        if (wheel) return closeWheel(false);
+        if (tool) { endStroke(); setTool(null); d.note('Put down.', 1400); }
+      },
+      context() { if (wheel) closeWheel(false); else if (tool) { endStroke(); setTool(null); d.note('Put down.', 1400); } },
+      move() {
+        if (wheel) return hoverWheel();
+        if (!dragging && !pen) return;
+        if (tool === 'eraser') rub(); else addPoint();
+      },
+      down(e) {
+        if (e.button === 2 || wheel) return;
+        cancelPress = longPress(e, 420, () => {
+          // A held finger opens the wheel; drop the dot it started drawing.
+          if (stroke && stroke.pts.length < 4) { stroke.el.remove(); stroke = null; }
+          dragging = false;
+          openWheel(true);
+          if (wheel) hoverWheel();
+        });
+        if (!tool) return;
+        try { stage.setPointerCapture(e.pointerId); } catch {}
+        dragging = true;
+        if (tool === 'pencil') startStroke(); else rub();
+      },
+      up() {
+        cancelPress();
+        if (touchWheel) return closeWheel(true);
+        dragging = false;
+        if (!pen) endStroke();
+      },
+      end() {
+        cancelPress(); setTool(null); box.innerHTML = '';
+        svgInk.classList.remove('hidden');
+      },
+    };
+  }
+
+  // ---------- Away ----------
+  const AWAY_BINDS = {
+    away: {
+      label: 'Away keys',
+      keys: [{ code: 'ControlLeft', sym: '⌃' }, { code: 'MetaLeft', sym: '⌘' }, { code: 'KeyA', sym: 'A' }],
+      // Away is a shortcut, so it needs a modifier plus one other key.
+      rule: (keys) => (keys.some((k) => isMod(k.code)) && keys.some((k) => !isMod(k.code)) ? null : 'Use ⌃, ⌥, ⇧ or ⌘ with one other key, like ⌃⌘A.'),
+    },
+  };
+  const awayTime = () => `Away since ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+
   function awayScript(d) {
     const { stage, cursor } = d;
     const { W, H } = d.size();
     stage.classList.remove('away'); cursor.classList.remove('gone');
-    stage.querySelector('.since').textContent = `Away since ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
-    const all = ['ctrl', 'cmd', 'a'];
-    d.keys([{ id: 'ctrl', sym: '⌃', label: 'Control' }, { id: 'cmd', sym: '⌘', label: 'Command' }, { id: 'a', sym: 'A', label: 'A' }]);
+    stage.querySelector('.note b').textContent = awayNote;
+    stage.querySelector('.since').textContent = awayTime();
+    d.keys(['away']);
+    const k = d.combo('away');
     const total = 3;
-    d.place(W * 0.22, H * 0.72);
-    d.say(0, total, 'Press ⌃⌘A to step away.');
+    d.start(W * 0.22, H * 0.72);
+    d.say(0, total, `Press ${k} to step away.`);
     d.later(200, () => d.move(W * 0.62, H * 0.66, 800));
-    d.later(1300, () => d.press(all, true));
+    d.later(1300, () => d.press(['away'], true));
     d.later(1400, () => stage.classList.add('away'));
-    d.later(1750, () => d.press(all, false));
+    d.later(1750, () => d.press(['away'], false));
     d.later(3300, () => { d.say(1, total, 'Your screen blurs, the pointer hides, your note shows.'); cursor.classList.add('gone'); });
-    d.later(6000, () => { d.say(2, total, 'Press ⌃⌘A again to come back.'); d.press(all, true); });
+    d.later(6000, () => { d.say(2, total, `Press ${k} again to come back.`); d.press(['away'], true); });
     d.later(6150, () => { stage.classList.remove('away'); cursor.classList.remove('gone'); });
-    d.later(6500, () => d.press(all, false));
+    d.later(6500, () => d.press(['away'], false));
     d.later(9000, () => d.play());
   }
 
-  const scripts = { scrawl: scrawlScript, away: awayScript };
+  // Your turn: write the note, then step away for real (on the little screen).
+  function awayTry(d) {
+    const { stage } = d;
+    const noteEl = stage.querySelector('.note b'), since = stage.querySelector('.since');
+    d.keys(['away']);
+    stage.classList.remove('away');
+    noteEl.textContent = awayNote;
+    const field = document.createElement('label');
+    field.className = 'note-field';
+    field.innerHTML = `<input type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="${DEFAULT_NOTE}"><small>Your note</small>`;
+    d.keysEl.append(field);
+    const input = field.querySelector('input');
+    input.value = awayNote === DEFAULT_NOTE ? '' : awayNote;
+    input.addEventListener('input', () => { awayNote = input.value.trim() || DEFAULT_NOTE; noteEl.textContent = awayNote; }, { signal: d.signal });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); }, { signal: d.signal });
+    let away = false;
+    const k = () => d.combo('away');
+    const guide = () => d.tell(away
+      ? (touchOnly ? 'Tap the screen to come back.' : `Press ${k()} again to come back.`)
+      : (touchOnly ? 'Write a note, then tap the screen to step away.' : `Write a note, then press ${k()} to step away.`));
+    const set = (on) => {
+      away = on;
+      if (on) { since.textContent = awayTime(); input.blur(); }
+      stage.classList.toggle('away', on);
+      guide();
+    };
+    return {
+      refresh: guide,
+      edge(id, down) { if (id === 'away' && down) set(!away); },
+      down(e) { if (e.button === 0) set(!away); },
+      escape() {},
+      end() { field.remove(); stage.classList.remove('away'); },
+    };
+  }
+
+  // ---------- Spin ----------
+  // The music wheel. Same wheel as the app (spin.js), pointed at a pretend playlist.
+  const SONGS = [
+    ['Paper Lanterns', 'The Quiet Hours'], ['Slow Orbit', 'Moth & Moon'], ['Late Bus Home', 'Juniper Lane'], ['Citrus', 'Holiday Static'],
+    ['Tidewater', 'Fern Light'], ['Northbound', 'The Quiet Hours'], ['Glass Hours', 'Low Tide Radio'], ['Sunday Static', 'Juniper Lane'],
+    ['Ferris', 'Moth & Moon'], ['Marigold', 'Holiday Static'], ['Small Weather', 'Fern Light'], ['Last Light Out', 'Low Tide Radio'],
+    ['Plum Season', 'The Quiet Hours'], ['Open Window', 'Juniper Lane'], ['Cassette Summer', 'Moth & Moon'], ['Kite Hill', 'Fern Light'],
+  ].map(([title, artist]) => ({ title, artist }));
+  const SPIN_BINDS = { spin: { label: 'Spin key', keys: [{ code: 'MetaRight', sym: '⌘', side: 'right' }] } };
+
+  // The pretend player and wheel, shared by Watch and Try it.
+  function spinKit(d) {
+    const { stage } = d;
+    const { W, H } = d.size();
+    const box = stage.querySelector('.wheel-box'), label = stage.querySelector('.slabel'), player = stage.querySelector('.player');
+    const size = W < 520 ? 40 : 54, count = 4, m = Spin.metrics(size);
+    const k = {
+      now: 4, off: 0, boff: 0, vol: 45, playing: true, svg: null, size, count, m,
+      c: { x: Math.round(W * 0.36), y: Math.round(H * 0.5) },
+      showPlayer(swap) {
+        const s = SONGS[k.now];
+        player.querySelector('b').textContent = s.title;
+        player.querySelector(':scope > div > span').textContent = s.artist;
+        player.querySelector('.prec i').style.setProperty('--c', Spin.labelColor(s));
+        player.querySelector('.pvol').style.setProperty('--v', `${k.vol}%`);
+        player.classList.toggle('paused', !k.playing);
+        if (swap) { player.classList.remove('swap'); void player.offsetWidth; player.classList.add('swap'); }
+      },
+      view() {
+        const up = SONGS.slice(k.now + 1 + k.off, k.now + 1 + k.off + count).map((s, j) => ({ ...s, at: k.now + 1 + k.off + j }));
+        const back = [];
+        for (let j = 0; j < count && k.now - 1 - k.boff - j >= 0; j++) back.push({ ...SONGS[k.now - 1 - k.boff - j], at: k.now - 1 - k.boff - j });
+        return {
+          up, back, upMore: k.now + 1 + k.off + count < SONGS.length, upLess: k.off > 0,
+          backMore: k.now - 1 - k.boff - count >= 0, backLess: k.boff > 0, index: k.now, total: SONGS.length,
+        };
+      },
+      np: () => ({ state: k.playing ? 'playing' : 'paused', track: SONGS[k.now] }),
+      st: () => ({ view: k.view(), volume: k.vol, np: k.np(), size, count }),
+      beads(shift) {
+        const v = k.view();
+        for (const side of ['up', 'back']) {
+          const g = k.svg.querySelector(`.beads[data-side="${side}"]`);
+          g.innerHTML = Spin.beads(size, count, side, side === 'up' ? v.up : v.back, side === 'up' ? { more: v.upMore, less: v.upLess } : { more: v.backMore, less: v.backLess });
+          if (shift && side === shift) g.querySelectorAll('.bead').forEach((b) => b.animate([{ transform: `rotate(${((side === 'up' ? 1 : -1) * m.step * 180) / Math.PI}deg)` }, { transform: 'none' }], { duration: 160, easing: 'cubic-bezier(.2,.9,.3,1.15)' }));
+        }
+      },
+      say(title, sub = '') {
+        label.querySelector('b').textContent = title;
+        label.querySelector('span').textContent = sub;
+        label.classList.add('show');
+        const w = label.offsetWidth, h = label.offsetHeight;
+        label.style.transform = `translate(${Math.max(6, Math.min(W - w - 6, k.c.x - w / 2))}px, ${Math.max(6, k.c.y - m.rc - m.beadR - 10 - h)}px)`;
+      },
+      hover: (h) => Spin.setHover(k.svg, h, k.st()),
+      open(c) {
+        if (c) k.c = c;
+        box.innerHTML = Spin.build({ size, count, np: k.np(), enter: false });
+        k.svg = box.firstChild;
+        // Placed with left/top, so the opening animation's transform doesn't move it.
+        placeAt(k.svg, k.c.x - m.cx, k.c.y - m.cy);
+        k.svg.classList.add('in');
+        k.beads(); k.hover(-1);
+        k.say(SONGS[k.now].title, SONGS[k.now].artist);
+      },
+      close() {
+        const old = k.svg; k.svg = null;
+        old?.classList.remove('in'); old?.classList.add('out');
+        label.classList.remove('show');
+        setTimeout(() => { if (box.firstChild === old) box.innerHTML = ''; }, 200);
+      },
+    };
+    box.innerHTML = ''; label.classList.remove('show');
+    k.showPlayer(false);
+    return k;
+  }
+
+  function spinScript(d) {
+    const k = spinKit(d), { m, count } = k;
+    const { W, H } = d.size();
+    const c = k.c;
+    const open = () => { d.press(['spin'], true); k.open(); };
+    const close = () => { d.press(['spin'], false); k.close(); };
+    const at = (rad, a) => ({ x: c.x + rad * Math.cos(a), y: c.y + rad * Math.sin(a) });
+    const go = (p, ms) => d.move(p.x, p.y, ms);
+    d.keys(['spin']);
+    const total = 5;
+    d.start(W * 0.8, H * 0.3);
+    d.say(0, total, `Hold ${d.combo('spin')} to open the music wheel.`);
+    d.later(200, () => go(c, 700));
+    d.later(1000, open);
+    d.later(2200, () => { d.say(1, total, 'Slide right: the next songs fan out.'); go(at((m.R + m.r) / 2, 0), 420); });
+    d.later(2550, () => { k.hover(Spin.SLICE.next); k.say('Next', k.view().up[0].title); });
+    d.later(3300, () => go(at(m.rc, Spin.beadAngle('up', 1, count, m.step)), 380));
+    d.later(3650, () => { k.hover(Spin.UP + 1); const s = k.view().up[1]; k.say(s.title, s.artist); });
+    d.later(4700, () => { d.say(2, total, 'Rest on the edge to scroll through the whole list.'); go(at(m.rc, Spin.beadAngle('up', count, count, m.step)), 420); });
+    d.later(5100, () => { k.hover(Spin.UP_MORE); k.say('Scrolling…'); });
+    [5500, 5720, 5920, 6100].forEach((t) => d.later(t, () => { k.off++; k.beads('up'); k.hover(Spin.UP_MORE); const v = k.view(); k.say('Scrolling…', `Songs ${v.up[0].at - k.now}–${v.up[v.up.length - 1].at - k.now} of ${SONGS.length - k.now - 1}`); }));
+    d.later(6700, () => { d.say(3, total, 'Let go on a song to play it.'); go(at(m.rc, Spin.beadAngle('up', 2, count, m.step)), 380); });
+    d.later(7050, () => { k.hover(Spin.UP + 2); const s = k.view().up[2]; k.say(s.title, s.artist); });
+    d.later(8000, () => { const s = k.view().up[2]; close(); k.now = s.at; k.off = 0; k.showPlayer(true); });
+    d.later(9300, () => { d.say(4, total, 'Slide down and along the arc to set the volume.'); open(); });
+    d.later(9700, () => go(at((m.R + m.r) / 2, Math.PI / 2), 380));
+    d.later(10050, () => { k.hover(Spin.SLICE.volume); k.say(`Volume ${k.vol}`, 'Slide out along the arc'); });
+    d.later(10500, () => go(at(m.rv, Spin.volAngle(k.vol)), 300));
+    d.later(10850, () => {
+      const t0 = performance.now(), from = k.vol, to = 78, run = d.run;
+      const step = (t) => {
+        if (run !== d.run) return;
+        const e0 = Math.min(1, (t - t0) / 1200), e = e0 < 0.5 ? 2 * e0 * e0 : 1 - (-2 * e0 + 2) ** 2 / 2;
+        k.vol = Math.round(from + (to - from) * e);
+        const p = at(m.rv, Spin.volAngle(k.vol)); d.place(p.x, p.y);
+        k.hover(Spin.VOL + k.vol); k.say(`Volume ${k.vol}`); k.showPlayer(false);
+        if (e0 < 1) d.setFrame(requestAnimationFrame(step));
+      };
+      d.setFrame(requestAnimationFrame(step));
+    });
+    d.later(12500, close);
+    d.later(15000, () => d.play());
+  }
+
+  // Your turn: the whole wheel. Pick songs, scroll the list, pause, and set the volume.
+  function spinTry(d) {
+    const { ptr } = d, S = Spin;
+    const k = spinKit(d);
+    d.keys(['spin']);
+    let open = false, h = -1, scrollT = 0, touchWheel = false, cancelPress = () => {};
+    const key = () => d.combo('spin');
+    const guide = () => d.tell(open
+      ? (touchWheel ? 'Slide to a slice, a song or the volume arc, then lift your finger.' : 'Slide to a slice, a song or the volume arc, then let go.')
+      : (touchOnly ? 'Press and hold the screen to open the music wheel.' : `Point at the screen and hold ${key()}.`));
+    const describe = () => {
+      const v = k.view(), song = SONGS[k.now];
+      if (h == null || h === -1) return k.say(song.title, k.playing ? song.artist : 'Paused');
+      if (h === S.SLICE.play) return k.say(k.playing ? 'Pause' : 'Play', song.title);
+      if (h === S.SLICE.next) return k.say('Next', SONGS[k.now + 1]?.title ?? 'That’s the last song');
+      if (h === S.SLICE.prev) return k.say('Previous', SONGS[k.now - 1]?.title ?? 'That’s the first song');
+      if (h === S.SLICE.volume) return k.say(`Volume ${k.vol}`, 'Slide out along the arc');
+      if (S.isVol(h)) return k.say(`Volume ${h - S.VOL}`);
+      if ([S.UP_MORE, S.UP_LESS, S.BACK_MORE, S.BACK_LESS].includes(h)) return k.say('Scrolling…');
+      const it = S.isUp(h) ? v.up[h - S.UP] : S.isBack(h) ? v.back[h - S.BACK] : null;
+      if (it) k.say(it.title, it.artist);
+    };
+    // Resting on either end of the records keeps scrolling, like the app.
+    const scroll = () => {
+      clearInterval(scrollT); scrollT = 0;
+      if (![S.UP_MORE, S.UP_LESS, S.BACK_MORE, S.BACK_LESS].includes(h)) return;
+      scrollT = setInterval(() => {
+        const v = k.view();
+        if (h === S.UP_MORE && v.upMore) { k.off++; k.beads('up'); }
+        else if (h === S.UP_LESS && v.upLess) { k.off--; k.beads(); }
+        else if (h === S.BACK_MORE && v.backMore) { k.boff++; k.beads('back'); }
+        else if (h === S.BACK_LESS && v.backLess) { k.boff--; k.beads(); }
+        else return;
+        k.hover(h);
+      }, 240);
+    };
+    const track = () => {
+      if (!open) return;
+      const v = k.view();
+      const ctx = { prev: h, up: v.up.length, back: v.back.length, upMore: v.upMore, upLess: v.upLess, backMore: v.backMore, backLess: v.backLess };
+      const nh = S.hitTest(k.size, k.count, ptr.x - k.c.x, ptr.y - k.c.y, ctx) ?? -1;
+      if (nh === h) return;
+      h = nh; k.hover(h);
+      if (S.isVol(h)) { k.vol = h - S.VOL; k.showPlayer(false); }
+      describe(); scroll();
+    };
+    const openWheel = (byTouch = false) => {
+      if (open) return;
+      if (!ptr.in) return d.tell(`Point at the screen first, then hold ${key()}.`);
+      k.off = 0; k.boff = 0; h = -1;
+      k.open({ x: ptr.x, y: ptr.y });
+      k.say(SONGS[k.now].title, k.playing ? SONGS[k.now].artist : 'Paused');
+      open = true; touchWheel = byTouch;
+      guide(); track();
+    };
+    const release = (act) => {
+      if (!open) return;
+      clearInterval(scrollT); scrollT = 0;
+      open = false; touchWheel = false;
+      const v = k.view();
+      let msg = null, swap = false;
+      if (act) {
+        const pickSong = (at) => { k.now = at; k.playing = true; swap = true; msg = `Now playing ${SONGS[at].title}.`; };
+        if (h === S.SLICE.play) { k.playing = !k.playing; msg = k.playing ? 'Playing.' : 'Paused.'; }
+        else if (h === S.SLICE.next) { if (SONGS[k.now + 1]) pickSong(k.now + 1); else msg = 'That’s the last song.'; }
+        else if (h === S.SLICE.prev) { if (k.now > 0) pickSong(k.now - 1); else msg = 'That’s the first song.'; }
+        else if (S.isVol(h) || h === S.SLICE.volume) msg = `Volume ${k.vol}.`;
+        else if (S.isBead(h)) { const it = S.isUp(h) ? v.up[h - S.UP] : v.back[h - S.BACK]; if (it) pickSong(it.at); }
+      }
+      k.close(); k.off = 0; k.boff = 0; h = -1;
+      k.showPlayer(swap);
+      if (msg) d.note(msg, 1800); else guide();
+    };
+    return {
+      refresh: guide,
+      edge(id, down) {
+        if (id !== 'spin') return;
+        if (down) { if (!othersHeld(d.binds.spin.keys)) openWheel(); }
+        else release(true);
+      },
+      escape() { release(false); },
+      move() { track(); },
+      down(e) {
+        if (e.button !== 0 || open) return;
+        cancelPress = longPress(e, 380, () => openWheel(true));
+      },
+      up() { cancelPress(); if (touchWheel) release(true); },
+      end() { cancelPress(); clearInterval(scrollT); if (open) k.close(); },
+    };
+  }
+
+  const DEFS = {
+    scrawl: { binds: SCRAWL_BINDS, ids: ['wheel', 'draw', 'esc'], watch: scrawlScript, try: scrawlTry },
+    away: { binds: AWAY_BINDS, ids: ['away'], watch: awayScript, try: awayTry },
+    spin: { binds: SPIN_BINDS, ids: ['spin'], watch: spinScript, try: spinTry },
+  };
   document.querySelectorAll('.demo').forEach((root) => {
-    const demo = makeDemo(root, scripts[root.dataset.demo]);
-    if (reduce) { demo.pause(); }
+    const demo = makeDemo(root, DEFS[root.dataset.demo]);
+    // With reduced motion the demos stay still: show the first step and the keys, and Try it still works.
+    if (reduce) { demo.play(); demo.pause(); }
   });
+
+  // ---------- toys in the margins ----------
+  const sayTo = (cap, text) => { cap.innerHTML = '<span></span>'; cap.firstChild.textContent = text; };
+  const canvasFor = (cv) => {
+    const dpr = Math.min(2, devicePixelRatio || 1), W = 180, H = 140;
+    cv.width = W * dpr; cv.height = H * dpr;
+    const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    return { ctx, W, H, dpr };
+  };
+  // Where the pointer is on a (slightly tilted) 180×140 sheet: undo the tilt around its center.
+  const localPoint = (cv, e) => {
+    const r = cv.getBoundingClientRect(), x = e.clientX - (r.left + r.width / 2), y = e.clientY - (r.top + r.height / 2);
+    const deg = parseFloat(getComputedStyle(cv.closest('.toy')).rotate) || 0, t = (-deg * Math.PI) / 180;
+    return { x: 90 + x * Math.cos(t) - y * Math.sin(t), y: 70 + x * Math.sin(t) + y * Math.cos(t) };
+  };
+
+  // The wheel. Faces and their lips turn as two layers, so the lip always stays below, like the real wheel.
+  (function () {
+    const toy = document.querySelector('.toy-wheel'); if (!toy) return;
+    const btn = toy.querySelector('.spinner'), cap = toy.querySelector('.toy-cap');
+    const NAMES = { pencil: 'the pencil', undo: 'Undo', redo: 'Redo', eraser: 'the eraser', hide: 'Hide drawings', clear: 'Clear' };
+    const cx = 60, cy = 58, R = 50, r = 20, gap = 2.2;
+    const total = WHEEL.reduce((s, [, w]) => s + w, 0), unit = (Math.PI * 2) / total;
+    const pt = (rad, t) => `${(cx + rad * Math.cos(t)).toFixed(2)},${(cy + rad * Math.sin(t)).toFixed(2)}`;
+    let a = -Math.PI / 2 - (WHEEL[0][1] * unit) / 2, faces = '', edges = '';
+    const spans = WHEEL.map(([id, w]) => {
+      const s = a, e = a + w * unit; a = e;
+      const d = `M${pt(R, s + gap / R)}A${R},${R} 0 0 1 ${pt(R, e - gap / R)}L${pt(r, e - gap / r)}A${r},${r} 0 0 0 ${pt(r, s + gap / r)}Z`;
+      const m = (s + e) / 2, ir = (R + r) / 2, size = id === 'pencil' ? 16 : w < 1 ? 11 : 13;
+      const ix = cx + ir * Math.cos(m) - size / 2, iy = cy + ir * Math.sin(m) - size / 2;
+      edges += `<path class="edge" data-id="${id}" d="${d}"/>`;
+      faces += `<g class="slice" data-id="${id}"><path class="top" d="${d}"/><g transform="translate(${ix.toFixed(1)} ${iy.toFixed(1)}) scale(${(size / 24).toFixed(3)})" class="ico" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${ICONS[id]}</g></g>`;
+      const deg = (x) => (x * 180) / Math.PI;
+      return { id, s: deg(s), e: deg(e), mid: deg(m) };
+    });
+    btn.innerHTML = `<svg viewBox="0 0 120 128" aria-hidden="true">` +
+      `<g class="edges" transform="translate(0 4)"><g class="turn">${edges}</g></g><g class="turn">${faces}</g>` +
+      `<circle class="hub-edge" cx="${cx}" cy="${cy + 3}" r="${r - 4}"/><circle class="hub-top" cx="${cx}" cy="${cy}" r="${r - 4}"/>` +
+      `<path class="tick" d="M54.5 1.5 Q60 0 65.5 1.5 L61.2 10.2 Q60 11.8 58.8 10.2 Z"/></svg>`;
+    const svg = btn.firstChild, turns = svg.querySelectorAll('.turn'), tick = svg.querySelector('.tick');
+    const norm = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
+    let rot = 0, v = 0, raf = 0, last = 0, drag = null, landed = null, lastTop = null;
+    const set = () => turns.forEach((g) => g.setAttribute('transform', `rotate(${rot.toFixed(2)} ${cx} ${cy})`));
+    const hot = (id) => svg.querySelectorAll('[data-id]').forEach((el) => el.classList.toggle('hot', el.dataset.id === id));
+    const atTop = () => { const L = -90 - rot; return spans.find((sp) => ((((L - sp.s) % 360) + 360) % 360) < sp.e - sp.s); };
+    const bump = () => { tick.classList.remove('bump'); void tick.getBBox(); tick.classList.add('bump'); };
+    const center = () => { const p = svg.createSVGPoint(); p.x = cx; p.y = cy; return p.matrixTransform(svg.getScreenCTM()); };
+    const angle = (e) => { const c = center(); return (Math.atan2(e.clientY - c.y, e.clientX - c.x) * 180) / Math.PI; };
+    const passing = () => { const sp = atTop(); if (sp.id !== lastTop) { lastTop = sp.id; hot(sp.id); bump(); } };
+
+    function settle() {
+      cancelAnimationFrame(raf); raf = 0;
+      const sp = atTop(), from = rot, to = rot + norm(-90 - (sp.mid + rot)), t0 = performance.now();
+      const ease = (k) => 1 - (1 - k) ** 3;
+      const step = (now) => {
+        const k = Math.min(1, (now - t0) / 320); rot = from + (to - from) * ease(k); set();
+        if (k < 1) raf = requestAnimationFrame(step); else { raf = 0; rot = norm(rot); set(); }
+      };
+      raf = requestAnimationFrame(step);
+      landed = sp.id; hot(sp.id); bump();
+      sayTo(cap, `Landed on ${NAMES[sp.id]}`);
+    }
+    function coast(now) {
+      const dt = Math.min(32, now - last); last = now;
+      rot += v * dt; v *= Math.pow(0.9966, dt); set(); passing();
+      if (Math.abs(v) > 0.04) raf = requestAnimationFrame(coast); else settle();
+    }
+    function spin(speed) {
+      cancelAnimationFrame(raf);
+      if (reduce) { rot += 60 + Math.random() * 300; set(); settle(); return; }
+      v = speed; last = performance.now(); raf = requestAnimationFrame(coast);
+    }
+
+    btn.addEventListener('pointerdown', (e) => {
+      cancelAnimationFrame(raf); raf = 0;
+      try { btn.setPointerCapture(e.pointerId); } catch {} btn.classList.add('held');
+      drag = { ang: angle(e), t: performance.now(), moved: 0, v: 0 };
+    });
+    btn.addEventListener('pointermove', (e) => {
+      if (!drag) { if (!raf) hot(e.target.closest('.slice')?.dataset.id ?? landed); return; }
+      const ang = angle(e), d = norm(ang - drag.ang), now = performance.now(), dt = Math.max(1, now - drag.t);
+      rot += d; drag.ang = ang; drag.t = now; drag.moved += Math.abs(d);
+      drag.v = drag.v * 0.6 + (d / dt) * 0.4; set(); passing();
+    });
+    const release = () => {
+      if (!drag) return;
+      const { moved, v: fling } = drag; drag = null; btn.classList.remove('held');
+      if (moved < 4) spin(1.3 + Math.random() * 0.9);
+      else if (Math.abs(fling) < 0.06) settle();
+      else spin(Math.max(-3, Math.min(3, fling)));
+    };
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('pointerleave', () => { if (!drag && !raf) hot(landed); });
+    btn.addEventListener('click', (e) => { if (e.detail === 0) spin(1.3 + Math.random() * 0.9); }); // Return or Space
+    set();
+  })();
+
+  // The ink pad: point at it and the pen draws.
+  (function () {
+    const toy = document.querySelector('.toy-pad'); if (!toy) return;
+    const sheet = toy.querySelector('.sheet'), cv = sheet.querySelector('canvas'), cap = toy.querySelector('.toy-cap');
+    const { ctx, W, H } = canvasFor(cv);
+    const swatches = toy.querySelectorAll('.swatch');
+    let color = '#3A7BEA', lastP = null, inked = 0;
+    swatches.forEach((s) => s.addEventListener('click', () => {
+      color = s.style.getPropertyValue('--c').trim();
+      swatches.forEach((o) => o.setAttribute('aria-pressed', String(o === s)));
+    }));
+    cv.addEventListener('pointermove', (e) => {
+      const p = localPoint(cv, e);
+      if (lastP) {
+        ctx.strokeStyle = color; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(lastP.x, lastP.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+        inked += Math.hypot(p.x - lastP.x, p.y - lastP.y);
+        if (inked > 600 && inked - Math.hypot(p.x - lastP.x, p.y - lastP.y) <= 600) sayTo(cap, 'Nice. The bin clears it');
+      }
+      lastP = p;
+    });
+    cv.addEventListener('pointerleave', () => { lastP = null; });
+    toy.querySelector('.pad-clear').addEventListener('click', () => {
+      if (reduce) { ctx.clearRect(0, 0, W, H); inked = 0; sayTo(cap, 'Point here to draw'); return; }
+      sheet.classList.add('wipe');
+      setTimeout(() => { ctx.clearRect(0, 0, W, H); sheet.classList.remove('wipe'); inked = 0; sayTo(cap, 'Point here to draw'); }, 380);
+    });
+  })();
+
+  // The eraser: rub out the scribble, and it draws itself back.
+  (function () {
+    const toy = document.querySelector('.toy-rub'); if (!toy) return;
+    const sheet = toy.querySelector('.sheet'), cv = sheet.querySelector('canvas'), rubber = sheet.querySelector('.rubber'), cap = toy.querySelector('.toy-cap');
+    const { ctx, W, H, dpr } = canvasFor(cv);
+    // A loopy line, like the one in Scrawl's icon.
+    const pts = Array.from({ length: 220 }, (_, i) => {
+      const t = i / 219;
+      return { x: 26 + 128 * t - 15 * Math.sin(Math.PI * 2 * 3.5 * t + 0.6), y: 74 + 24 * Math.cos(Math.PI * 2 * 3.5 * t + 0.6) - 14 * Math.sin(Math.PI * t) };
+    });
+    let full = 1, moves = 0, lastP = null, drawing = 0, done = false;
+    const count = () => {
+      const data = ctx.getImageData(0, 0, W * dpr, H * dpr).data; let n = 0;
+      for (let i = 3; i < data.length; i += 16) if (data[i] > 40) n++;
+      return n;
+    };
+    function draw(animate) {
+      cancelAnimationFrame(drawing);
+      ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, W, H);
+      ctx.strokeStyle = '#3A7BEA'; ctx.lineWidth = 6;
+      const upTo = (k) => { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i <= k; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.stroke(); };
+      if (!animate || reduce) { upTo(pts.length - 1); full = count(); return; }
+      const t0 = performance.now();
+      const step = (now) => {
+        const k = Math.min(1, (now - t0) / 1100), e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+        ctx.clearRect(0, 0, W, H); upTo(Math.max(1, Math.round(e * (pts.length - 1))));
+        if (k < 1) drawing = requestAnimationFrame(step); else { full = count(); done = false; sayTo(cap, 'Rub it out'); }
+      };
+      drawing = requestAnimationFrame(step);
+    }
+    cv.addEventListener('pointermove', (e) => {
+      const p = localPoint(cv, e);
+      rubber.style.transform = `translate(${p.x}px, ${p.y}px)`;
+      if (done) return;
+      ctx.globalCompositeOperation = 'destination-out'; ctx.lineWidth = 24;
+      ctx.beginPath(); ctx.moveTo((lastP || p).x, (lastP || p).y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+      lastP = p;
+      if (++moves % 8 === 0 && count() < full * 0.06) {
+        done = true; ctx.clearRect(0, 0, W, H); sayTo(cap, 'All gone');
+        setTimeout(() => draw(true), 1300);
+      }
+    });
+    cv.addEventListener('pointerleave', () => { lastP = null; });
+    draw(false);
+  })();
+
+  // Away's mug: three sips, then a refill.
+  (function () {
+    const toy = document.querySelector('.toy-mug'); if (!toy) return;
+    const mug = toy.querySelector('.mug'), svg = mug.querySelector('svg'), cap = toy.querySelector('.toy-cap');
+    let sips = 3;
+    mug.addEventListener('click', () => {
+      if (sips === 0) {
+        sips = 3; mug.classList.remove('empty'); mug.setAttribute('aria-label', 'Take a sip');
+        if (!reduce) svg.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-8px) scale(1.04, 0.97)' }, { transform: 'translateY(0)' }], { duration: 480, easing: 'cubic-bezier(.3,1.6,.5,1)' });
+        sayTo(cap, 'Fresh cup. Click to sip'); return;
+      }
+      sips--;
+      if (!reduce) svg.animate([{ rotate: '0deg' }, { rotate: '-24deg', offset: 0.35 }, { rotate: '-24deg', offset: 0.6 }, { rotate: '0deg' }], { duration: 900, easing: 'cubic-bezier(.45,.05,.25,1)' });
+      mug.querySelector('.wisps').style.opacity = String(sips / 3 + 0.001);
+      if (sips === 0) { mug.classList.add('empty'); mug.setAttribute('aria-label', 'Refill the mug'); mug.querySelector('.wisps').style.opacity = ''; }
+      sayTo(cap, ['All gone. Click to refill', 'One sip left', 'Two sips left'][sips]);
+    });
+  })();
+
+  // The tiny screen: sharp while you're pointing at it, blurred a moment after you leave.
+  (function () {
+    const toy = document.querySelector('.toy-screen'); if (!toy) return;
+    const mon = toy.querySelector('.monitor'), st = mon.querySelector('.stage'), cap = toy.querySelector('.toy-cap'), since = st.querySelector('.since');
+    let t = 0;
+    const stamp = () => { since.textContent = `Away since ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`; };
+    const wake = () => { clearTimeout(t); if (st.classList.contains('away')) { st.classList.remove('away'); sayTo(cap, 'Now look away'); } };
+    const leave = () => { clearTimeout(t); t = setTimeout(() => { stamp(); st.classList.add('away'); sayTo(cap, 'Point here to come back'); }, 1400); };
+    stamp();
+    mon.addEventListener('pointerenter', wake); mon.addEventListener('focus', wake);
+    mon.addEventListener('pointerleave', leave); mon.addEventListener('blur', leave);
+  })();
+
+  // Spin's turntable. The record turns while you point at it, scratches when you drag it, and changes when you click.
+  (function () {
+    const toy = document.querySelector('.toy-deck'); if (!toy) return;
+    const deck = toy.querySelector('.deck'), cap = toy.querySelector('.toy-cap');
+    const RECORDS = [
+      ['#FFC94D', 'Sunday Records'], ['#7ED3A8', 'Mint Condition'], ['#F49CB0', 'Pink Noise'], ['#B9A5F4', 'Lavender Hours'], ['#FFB38A', 'Peach Fuzz'],
+    ];
+    const cx = 70, cy = 76;
+    let grooves = ''; for (const r of [50, 44, 38, 32]) grooves += `<circle class="groove" cx="${cx}" cy="${cy}" r="${r}"/>`;
+    deck.innerHTML = `<svg viewBox="0 0 180 150" aria-hidden="true">
+      <rect class="plinth-lip" x="2" y="10" width="176" height="138" rx="22"/><rect class="plinth" x="2" y="4" width="176" height="138" rx="22"/>
+      <circle class="vinyl-lip" cx="${cx}" cy="${cy + 3}" r="58"/>
+      <g class="disc"><circle class="vinyl" cx="${cx}" cy="${cy}" r="58"/>${grooves}
+        <path class="shine" d="M${cx - 40} ${cy - 30} A50 50 0 0 1 ${cx - 12} ${cy - 48}"/>
+        <circle class="label-lip" cx="${cx}" cy="${cy + 1.5}" r="19"/><circle class="label" cx="${cx}" cy="${cy}" r="19"/>
+        <circle cx="${cx + 9}" cy="${cy - 6}" r="3" fill="rgba(255,255,255,0.55)"/></g>
+      <circle class="spindle" cx="${cx}" cy="${cy}" r="3.2"/>
+      <g class="notes"></g>
+      <g class="arm" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="7">
+        <path class="arm-lip" d="M154 26 L154 70 Q154 96 118 106" transform="translate(0 3)"/><path class="arm-top" d="M154 26 L154 70 Q154 96 118 106"/>
+        <circle class="pivot-lip" cx="154" cy="29" r="11" stroke="none"/><circle class="pivot" cx="154" cy="26" r="11" stroke="none"/>
+      </g></svg>`;
+    const svg = deck.firstChild, disc = svg.querySelector('.disc'), label = svg.querySelector('.label'), notes = svg.querySelector('.notes');
+    const PLAY = 0.2; // degrees per millisecond, about 33 rpm
+    let rot = 0, v = 0, target = 0, raf = 0, last = 0, drag = null, rec = 0, noteAt = 0, playing = false, inside = false;
+    const setRec = () => { svg.style.setProperty('--c', RECORDS[rec][0]); };
+    const center = () => { const p = svg.createSVGPoint(); p.x = cx; p.y = cy; return p.matrixTransform(svg.getScreenCTM()); };
+    const angle = (e) => { const c = center(); return (Math.atan2(e.clientY - c.y, e.clientX - c.x) * 180) / Math.PI; };
+    const norm = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
+    function note() {
+      const n = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      n.setAttribute('class', 'note');
+      n.setAttribute('d', 'M0 6 V-4 L6 -6 V4 M0 6 a2.2 2.2 0 1 1 -0.1 0 M6 4 a2.2 2.2 0 1 1 -0.1 0');
+      n.setAttribute('transform', `translate(${100 + Math.random() * 30} ${40 + Math.random() * 10})`);
+      n.style.cssText = `--dx:${(Math.random() * 16 - 8).toFixed(1)}px; --r:${(Math.random() * 40 - 20).toFixed(0)}deg; transform-box: fill-box;`;
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.setAttribute('transform', n.getAttribute('transform')); n.removeAttribute('transform');
+      g.appendChild(n); notes.appendChild(g); setTimeout(() => g.remove(), 1600);
+    }
+    function loop(now) {
+      const dt = Math.min(32, now - last); last = now;
+      if (!drag) v += (target - v) * (1 - Math.pow(target ? 0.996 : 0.9975, dt));
+      rot += v * dt; disc.setAttribute('transform', `rotate(${rot.toFixed(2)} ${cx} ${cy})`);
+      if (playing && !drag && !reduce && now > noteAt) { note(); noteAt = now + 650 + Math.random() * 500; }
+      if (drag || playing || Math.abs(v) > 0.002) raf = requestAnimationFrame(loop); else raf = 0;
+    }
+    const kick = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); } };
+    const play = (on) => {
+      if (on === playing) return; playing = on; target = on ? PLAY : 0;
+      deck.classList.toggle('playing', on);
+      sayTo(cap, on ? `Now playing ${RECORDS[rec][1]}` : 'Point here to play');
+      if (reduce) { v = 0; return; }
+      kick();
+    };
+    deck.addEventListener('pointerenter', () => { inside = true; play(true); });
+    deck.addEventListener('pointerleave', () => { inside = false; if (!drag) play(false); });
+    deck.addEventListener('focus', () => play(true));
+    deck.addEventListener('blur', () => play(false));
+    deck.addEventListener('pointerdown', (e) => {
+      try { deck.setPointerCapture(e.pointerId); } catch {}
+      deck.classList.add('held'); drag = { ang: angle(e), t: performance.now(), moved: 0, v: 0 }; v = 0; kick();
+    });
+    deck.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const a = angle(e), d = norm(a - drag.ang), now = performance.now(), dt = Math.max(1, now - drag.t);
+      rot += d; drag.ang = a; drag.t = now; drag.moved += Math.abs(d); drag.v = drag.v * 0.6 + (d / dt) * 0.4;
+      if (drag.moved > 20 && !drag.said) { drag.said = true; sayTo(cap, 'Scratching'); }
+    });
+    const release = () => {
+      if (!drag) return;
+      const { moved, v: fling } = drag; drag = null; deck.classList.remove('held');
+      if (moved < 4) { // a click: next record
+        rec = (rec + 1) % RECORDS.length; setRec();
+        if (!reduce) label.animate([{ transform: 'scale(0.4)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'cubic-bezier(.3,1.6,.5,1)' });
+        sayTo(cap, `Now playing ${RECORDS[rec][1]}`);
+      } else {
+        v = Math.max(-2, Math.min(2, fling));
+      }
+      if (!inside) play(false);
+      else if (!playing) play(true);
+      else sayTo(cap, `Now playing ${RECORDS[rec][1]}`);
+      kick();
+    };
+    deck.addEventListener('pointerup', release);
+    deck.addEventListener('pointercancel', release);
+    deck.addEventListener('click', (e) => { if (e.detail === 0) { rec = (rec + 1) % RECORDS.length; setRec(); sayTo(cap, `Now playing ${RECORDS[rec][1]}`); } });
+    setRec();
+  })();
+
+  // Drag Pane into Applications.
+  (function () {
+    const toy = document.querySelector('.toy-drop'); if (!toy) return;
+    const icon = toy.querySelector('.drop-icon'), folder = toy.querySelector('.drop-folder'), cap = toy.querySelector('.toy-cap');
+    let drag = null, busy = false;
+    const over = (e) => { const r = folder.getBoundingClientRect(); return e.clientX > r.left - 8 && e.clientX < r.right + 8 && e.clientY > r.top - 8 && e.clientY < r.bottom + 8; };
+    function drop(dx, dy) {
+      busy = true;
+      const f = folder.getBoundingClientRect(), i = icon.getBoundingClientRect();
+      const tx = dx + (f.left + f.width / 2) - (i.left + i.width / 2), ty = dy + (f.top + f.height * 0.6) - (i.top + i.height / 2);
+      const anim = icon.animate([{ transform: `translate(${dx}px, ${dy}px) scale(1.08)` }, { transform: `translate(${tx}px, ${ty}px) scale(0.2)`, opacity: 0 }], { duration: reduce ? 1 : 300, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' });
+      anim.onfinish = () => {
+        folder.classList.remove('near'); toy.classList.remove('landed'); void toy.offsetWidth; toy.classList.add('landed');
+        sayTo(cap, 'Installed. Pane’s in Applications');
+        setTimeout(() => {
+          anim.cancel(); icon.style.transform = '';
+          if (!reduce) icon.animate([{ transform: 'scale(0.3)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 520, easing: 'cubic-bezier(.3,1.6,.5,1)' });
+          toy.classList.remove('landed'); busy = false; sayTo(cap, 'Drag Pane into the folder');
+        }, 2200);
+      };
+    }
+    icon.addEventListener('pointerdown', (e) => {
+      if (busy) return;
+      try { icon.setPointerCapture(e.pointerId); } catch {} icon.classList.add('held');
+      drag = { x: e.clientX, y: e.clientY, dx: 0, dy: 0 };
+      icon.style.transition = 'none';
+    });
+    icon.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      drag.dx = e.clientX - drag.x; drag.dy = e.clientY - drag.y;
+      icon.style.transform = `translate(${drag.dx}px, ${drag.dy}px) scale(1.08)`;
+      folder.classList.toggle('near', over(e));
+    });
+    const release = (e) => {
+      if (!drag) return;
+      const { dx, dy } = drag; drag = null; icon.classList.remove('held');
+      if (e.type === 'pointerup' && over(e)) { drop(dx, dy); return; }
+      folder.classList.remove('near');
+      icon.style.transition = 'transform 420ms var(--bouncy)'; icon.style.transform = '';
+      if (Math.hypot(dx, dy) > 10) sayTo(cap, 'Almost. Let go over the folder');
+    };
+    icon.addEventListener('pointerup', release);
+    icon.addEventListener('pointercancel', release);
+    icon.addEventListener('click', (e) => { if (e.detail === 0 && !busy) drop(0, 0); }); // Return or Space
+  })();
 </script>
 </body>
 </html>

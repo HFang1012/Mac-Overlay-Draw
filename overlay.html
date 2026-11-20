@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'">
 <title>Scrawl overlay</title>
 <link rel="stylesheet" href="base.css">
 <style>
@@ -63,9 +63,51 @@
 
   @media (prefers-reduced-motion: reduce) { #badge.swap { animation: none; } #ring, #pointer * { transition: opacity 1ms; } }
 
-  #wheel { position: fixed; pointer-events: none; left: 0; top: 0; }
-  #wheel .wheel { filter: drop-shadow(0 8px 18px rgba(38, 43, 54, 0.2)); }
+  /* Color picker loupe: the pixels under the cursor, enlarged, with the color they make. Sits beside the cursor. */
+  #loupe {
+    position: fixed; left: 0; top: 0; pointer-events: none; will-change: translate;
+    display: grid; justify-items: center; gap: 8px; padding: 8px 8px 9px; border-radius: 22px;
+    background: var(--card); box-shadow: 0 5px 0 var(--card-lip), 0 14px 28px rgba(38, 43, 54, 0.22);
+    font-family: var(--font); color: var(--ink);
+    opacity: 0; scale: 0.5; transform-origin: var(--ox, 0%) var(--oy, 0%);
+    transition: opacity 120ms ease, scale 340ms var(--bouncy);
+  }
+  #loupe.show { opacity: 1; scale: 1; }
+  #loupe.took { scale: 0.88; transition: opacity 260ms ease 120ms, scale 220ms ease; opacity: 0; }
+  #loupe canvas { display: block; width: 99px; height: 99px; border-radius: 50%; box-shadow: 0 0 0 2px var(--edge); }
+  #loupe .read { display: flex; align-items: center; gap: 7px; height: 22px; padding: 0 9px 0 4px; border-radius: 11px; background: var(--well); }
+  #loupe .sw { width: 15px; height: 15px; border-radius: 50%; background: var(--c, #fff); box-shadow: inset 0 0 0 1px rgba(38, 43, 54, 0.18); }
+  #loupe b { font-size: 12px; font-weight: 800; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
 
+  /* A short note by the cursor, e.g. when the picker needs Screen Recording access. */
+  #note {
+    position: fixed; left: 0; top: 0; pointer-events: none; max-width: 240px; padding: 9px 13px; border-radius: 14px;
+    background: var(--ink); color: var(--card); font: 700 12.5px/1.35 var(--font);
+    box-shadow: 0 4px 0 #0F1218, 0 12px 24px rgba(38, 43, 54, 0.25);
+    opacity: 0; scale: 0.7; transform-origin: 0 0; transition: opacity 160ms ease, scale 340ms var(--bouncy);
+  }
+  #note.show { opacity: 1; scale: 1; }
+  @media (prefers-reduced-motion: reduce) { #loupe, #note { transition: opacity 1ms; } }
+
+  /* Spin's music wheel wears Spin's theme (set on its own boxes, so Scrawl's layer keeps its colors). */
+  #spin { position: fixed; pointer-events: none; left: 0; top: 0; }
+  #spin .wheel { filter: drop-shadow(0 8px 18px rgba(30, 43, 39, 0.22)); }
+  body.spinning #ring, body.spinning #badge { opacity: 0 !important; }
+  /* What you're pointing at: the song, or what the slice does. */
+  #spinLabel {
+    position: fixed; left: 0; top: 0; pointer-events: none; max-width: 300px; min-width: 120px;
+    display: grid; justify-items: center; gap: 1px; padding: 8px 14px 9px; border-radius: 16px; text-align: center;
+    background: var(--card); color: var(--ink); font-family: var(--font);
+    box-shadow: 0 4px 0 var(--card-lip), 0 12px 26px rgba(30, 43, 39, 0.2);
+    opacity: 0; scale: 0.7; transition: opacity 120ms ease, scale 340ms var(--bouncy);
+  }
+  #spinLabel.show { opacity: 1; scale: 1; transition-delay: 60ms; }
+  #spinLabel b { font-size: 13.5px; font-weight: 800; line-height: 1.25; max-width: 272px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #spinLabel span { font-size: 12px; font-weight: 600; color: var(--ink-2); max-width: 272px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #spinLabel span:empty { display: none; }
+  #spinLabel i { font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent-soft); border-radius: 999px; padding: 1px 8px; margin-top: 3px; }
+  #spinLabel i[hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) { #spinLabel { transition: opacity 1ms; } }
 </style>
 </head>
 <body>
@@ -74,7 +116,13 @@
 <div id="wheel"></div>
 <div id="pointer"><span class="core"></span><span class="arrow"></span></div>
 <img id="badge" alt="">
+<div id="loupe"><canvas></canvas><div class="read"><span class="sw"></span><b></b></div></div>
+<div id="note"></div>
+<div id="spin" data-theme="spin"></div>
+<div id="spinLabel" data-theme="spin"><b></b><span></span><i hidden></i></div>
 <script src="wheel.js"></script>
+<script src="spin.js"></script>
 <script src="overlay.js"></script>
+<script src="spin-overlay.js"></script>
 </body>
 </html>

@@ -4,6 +4,8 @@
   // Each tool keeps its own colors: Scrawl's eraser pink on graphite, Away's lilac and apricot on plum.
   const C = { ink: '#2B2733', inkLip: '#16131C', accent: '#B9A5F4', accentLip: '#8E76DC', peach: '#FFC593', peachLip: '#E39C60' };
   const SC = { ink: '#262B36', inkLip: '#0F1218', pink: '#F49CB0', pinkLip: '#D96F8A' };
+  // Spin: a green-black record with a mustard label, and a mint tone arm.
+  const SP = { ink: '#1E2B27', inkLip: '#0B1210', mustard: '#FFC94D', mustardLip: '#DDA21F', mint: '#7ED3A8', mintLip: '#4DB283' };
 
   // Chunky glyphs: a flat shape over a darker copy of itself, nudged down (the "lip").
   const lip = (shape, fill, under, dy) => `<g transform="translate(0 ${dy})" fill="${under}" stroke="${under}">${shape}</g><g fill="${fill}" stroke="${fill}">${shape}</g>`;
@@ -29,6 +31,19 @@
           lip(saucer, C.ink, C.inkLip, 2) + lip(cup, C.peach, C.peachLip, 3);
       },
     },
+    // Spin: a record on the turntable, its arm resting on the groove.
+    spin: {
+      viewBox: '0 0 60 44',
+      body: () => {
+        const disc = '<circle cx="26" cy="22" r="18" stroke="none"/>';
+        const label = '<circle cx="26" cy="22" r="7" stroke="none"/>';
+        const arm = '<path d="M50 5 L50 16 Q50 24 40 28" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="50" cy="6" r="4.5" stroke="none"/>';
+        return lip(disc, SP.ink, SP.inkLip, 3) +
+          `<circle cx="26" cy="22" r="12.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="1.4"/>` +
+          `<g class="label">${lip(label, SP.mustard, SP.mustardLip, 1.5)}<circle cx="26" cy="22" r="1.8" fill="${SP.ink}"/><circle cx="29" cy="19.5" r="1.4" fill="#FFFFFF" fill-opacity="0.5"/></g>` +
+          lip(arm, SP.mint, SP.mintLip, 2.5);
+      },
+    },
   };
   function glyph(id, h = 22) {
     const g = GLYPHS[id];
@@ -39,6 +54,7 @@
   const TOOLS = [
     { id: 'scrawl', name: 'Scrawl', blurb: 'Draw on your screen.', theme: 'scrawl', bg: '#E3E8EF' },
     { id: 'away', name: 'Away', blurb: 'Blur your screen while you’re away.', theme: 'away', bg: '#ECE6DD' },
+    { id: 'spin', name: 'Spin', blurb: 'Run your music from a wheel.', theme: 'spin', bg: '#E4ECE3' },
   ];
 
   // Away's gradient blobs. Each mood is three soft colors that drift behind the blur.
@@ -53,7 +69,7 @@
 
   const DEFAULT_MESSAGE = 'I’m away from my computer right now.';
 
-  const api = { TOOLS, MOODS, mood, glyph, DEFAULT_MESSAGE, COLORS: C };
+  const api = { TOOLS, MOODS, mood, glyph, DEFAULT_MESSAGE, COLORS: C, SPIN_COLORS: SP };
   if (typeof window !== 'undefined') window.Tools = api;
   if (typeof module !== 'undefined') module.exports = api;
 })();

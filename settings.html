@@ -2,7 +2,7 @@
 <html lang="en" data-theme="scrawl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'">
 <title>Pane</title>
 <link rel="stylesheet" href="base.css">
 <style>
@@ -41,7 +41,7 @@
   h1 { font-size: 30px; line-height: 1.12; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
   .lede { color: var(--ink-2); font-weight: 500; margin: 10px 0 0; line-height: 1.5; }
 
-  .keyrow { display: flex; gap: 14px; margin-top: 24px; }
+  .keyrow { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
   .keyslot { display: grid; gap: 8px; justify-items: center; }
   .keylabel { font-size: 12px; font-weight: 600; color: var(--ink-2); }
   .keys { display: flex; gap: 10px; align-items: center; }
@@ -408,6 +408,65 @@
   .dots span.done { background: var(--accent); }
   .demo-foot .pill { margin: 0 0 4px; }
 
+  /* ---------- Spin page ---------- */
+  .keycap.sided { position: relative; }
+  .keycap .side {
+    position: absolute; left: 50%; bottom: 5px; translate: -50% 0; font-size: 9px; font-weight: 800;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); line-height: 1;
+  }
+  .keycap.sided { padding-bottom: 8px; }
+  .keycap.held-key { box-shadow: 0 2px 0 var(--accent-lip); transform: translateY(4px); }
+  .preview.spin-preview { width: 104px; height: 104px; }
+  .apps .tile { cursor: pointer; flex: 1 1 0; }
+  .apps .tile .glyph svg { height: 40px; width: auto; }
+  .apps .tile small { font-size: 10.5px; font-weight: 600; color: var(--ink-2); margin-top: -6px; }
+  .now {
+    margin-top: 14px; display: grid; grid-template-columns: 38px 1fr auto; gap: 12px; align-items: center;
+    padding: 10px 12px; border-radius: 18px; background: var(--well); min-height: 58px;
+  }
+  .now .rec { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: #18221F; position: relative; display: grid; place-items: center; }
+  .now .rec img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .now .rec::after { content: ""; position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--well); }
+  .now .rec.turning { animation: rec-turn 3.6s linear infinite; }
+  @keyframes rec-turn { to { rotate: 360deg; } }
+  .now b { display: block; font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .now span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 12px; font-weight: 600; color: var(--ink-2); overflow: hidden; line-height: 1.35; }
+  .now > div { min-width: 0; }
+  .mini {
+    height: 28px; padding: 0 12px; border-radius: 14px; font-size: 12px; font-weight: 800; white-space: nowrap;
+    background: var(--card); box-shadow: 0 3px 0 var(--card-lip); margin-bottom: 3px;
+    transition: transform 180ms var(--bouncy), box-shadow 180ms var(--bouncy);
+  }
+  .mini:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--card-lip); }
+  .mini:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--card-lip); }
+  .mini.go { background: var(--accent); box-shadow: 0 3px 0 var(--accent-lip); }
+  .mini.go:active { box-shadow: 0 1px 0 var(--accent-lip); }
+  .mini[hidden] { display: none; }
+  .mini:disabled { opacity: 0.6; cursor: default; }
+  .link { display: grid; gap: 10px; }
+  .link[hidden] { display: none; }
+  .link ol { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 8px; }
+  .link li { counter-increment: s; display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: center; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+  .link li::before { content: counter(s); width: 20px; height: 20px; border-radius: 7px; display: grid; place-items: center; background: var(--well); color: var(--ink); font-size: 11px; font-weight: 800; }
+  .link li b { color: var(--ink); }
+  .link code { font: 700 11.5px ui-monospace, "SF Mono", Menlo, monospace; color: var(--ink); background: var(--well); border-radius: 6px; padding: 1px 6px; user-select: text; }
+  .link .inline { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .link .inline .mini { height: 24px; padding: 0 9px; font-size: 11px; }
+  .idrow { display: flex; gap: 8px; align-items: center; -webkit-app-region: no-drag; }
+  .idrow input {
+    flex: 1; min-width: 0; height: 34px; border: 0; outline: none; font: 700 12.5px ui-monospace, "SF Mono", Menlo, monospace; color: var(--ink);
+    padding: 0 12px; border-radius: 12px; background: var(--well); user-select: text; cursor: text; transition: background 160ms ease, box-shadow 200ms ease;
+  }
+  .idrow input::placeholder { color: var(--ink-2); opacity: 0.7; font-family: var(--font); font-weight: 600; }
+  .idrow input:focus { background: var(--card); box-shadow: inset 0 0 0 3px var(--accent); }
+  .idrow .mini { height: 34px; border-radius: 12px; }
+  .linked { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 8px 8px 14px; border-radius: 14px; background: var(--well); font-size: 13px; font-weight: 700; }
+  .linked[hidden] { display: none; }
+  .linked .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2FA36B; margin-right: 8px; }
+  .link .note { font-size: 12px; font-weight: 600; color: var(--accent-ink); min-height: 0; margin: 0; }
+  .link .note:empty { display: none; }
+  .spin-row[hidden] { display: none; }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
   }
@@ -441,7 +500,7 @@
         <span class="keylabel">Draw key</span>
       </div>
     </div>
-    <p class="caption rise" style="--d:200ms" id="keycaption">Click a key to change it.</p>
+    <p class="caption rise" style="--d:200ms" id="keycaption">Click a key to change it. Hold several to use them together.</p>
 
     <div class="collapse" id="access"><div>
       <div class="callout chunky">
@@ -581,6 +640,81 @@
     </div>
   </section>
 </div>
+<div class="page" id="spinPage" data-tool="spin" hidden>
+  <section>
+    <div class="brand rise" style="--d:0ms">
+      <span class="mark" data-glyph="spin"></span>
+      Spin
+      <span class="version"></span>
+    </div>
+    <h1 class="rise" style="--d:60ms">Hold a key.<br>Spin the music.</h1>
+    <p class="lede rise" style="--d:120ms">Hold the Spin key, slide to play, skip or a song, and let go. Rest on the edge of the songs to scroll the whole list. Back to the middle puts everything back.</p>
+
+    <div class="keyrow rise" style="--d:160ms">
+      <div class="keyslot">
+        <button class="keywell" data-which="spinKey" aria-describedby="spinCaption">
+          <svg class="ants" aria-hidden="true"><rect rx="21"/></svg>
+          <span class="keys"></span>
+        </button>
+        <span class="keylabel">Spin key</span>
+      </div>
+    </div>
+    <p class="caption rise" style="--d:200ms" id="spinCaption">Click a key to change it. Hold several to use them together.</p>
+
+    <div class="power rise" style="--d:240ms">
+      <button class="power-btn" id="spinPower" aria-pressed="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 3.5v8"/><path d="M6.6 6.8a7.5 7.5 0 1 0 10.8 0"/></svg>
+        <span class="swap" id="spinPowerText">Turn off</span>
+      </button>
+      <div class="status" id="spinStatus">
+        <span class="dot"></span><span class="swap" id="spinStatusText">Checking…</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card chunky rise" style="--d:90ms" aria-label="Spin settings">
+    <div class="head">
+      <div>
+        <h2>Music app</h2>
+        <p>The one Spin plays, skips and turns up.</p>
+      </div>
+      <div class="preview spin-preview" id="spinPreview"></div>
+    </div>
+    <div class="tiles apps" id="apps" role="radiogroup" aria-label="Music app"></div>
+    <div class="now rise" style="--d:260ms" id="spinNow" aria-live="polite">
+      <span class="rec" id="nowRec"></span>
+      <div><b id="nowTitle">Looking…</b><span id="nowSub"></span></div>
+      <button class="mini" id="nowFix" hidden>Open settings</button>
+    </div>
+
+    <div class="rows">
+      <div class="row rise" style="--d:300ms">
+        <div><h3>Songs each way</h3><p>How many coming and past songs fan out.</p></div>
+        <div class="stepper" data-key="spin.count" data-values="3,4,5,6"></div>
+      </div>
+      <div class="row stack spin-row rise" style="--d:340ms" id="spotifyRow">
+        <div><h3>Spotify queue</h3><p>Spotify keeps its queue to itself. Link your account once to see it, and your playlists, on the wheel. Play, skip and volume work without this.</p></div>
+        <div class="linked" id="spotifyLinked" hidden><span><span class="dot"></span><span id="spotifyName">Linked</span></span><button class="mini" id="spotifyUnlink">Unlink</button></div>
+        <div class="link" id="spotifyLink">
+          <ol>
+            <li><span class="inline">Make a free app at <button class="mini" id="spotifyDash">developer.spotify.com</button></span></li>
+            <li><span class="inline">Add <code id="spotifyRedirect">http://127.0.0.1:43117/callback</code> <button class="mini" id="copyRedirect">Copy</button> as its Redirect URI, and tick <b>Web API</b>.</span></li>
+            <li><span>Paste the app’s <b>Client ID</b> here and link.</span></li>
+          </ol>
+          <div class="idrow">
+            <input id="spotifyId" type="text" spellcheck="false" autocomplete="off" placeholder="Client ID" aria-label="Spotify Client ID" maxlength="64">
+            <button class="mini go" id="spotifyGo">Link Spotify</button>
+          </div>
+          <p class="note" id="spotifyNote"></p>
+        </div>
+      </div>
+      <div class="row rise" style="--d:380ms">
+        <div><h3>Open at login</h3><p>Start Pane with your Mac.</p></div>
+        <button class="switch login" role="switch" aria-checked="false" aria-label="Open at login"></button>
+      </div>
+    </div>
+  </section>
+</div>
 <div class="demo" id="demo" role="dialog" aria-modal="true" aria-labelledby="demoTitle">
   <div class="demo-sheet">
     <div class="demo-head">
@@ -623,7 +757,9 @@
 <script src="wheel.js"></script>
 <script src="tools.js"></script>
 <script src="settings.js"></script>
+<script src="spin.js"></script>
 <script src="away-settings.js"></script>
+<script src="spin-settings.js"></script>
 <script src="switcher.js"></script>
 <script src="demo.js"></script>
 </body>

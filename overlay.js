@@ -183,13 +183,14 @@ const chipCache = new Map();
 function chipArt(tool) {
   if (chipCache.has(tool)) return chipCache.get(tool);
   const chip = 18, W = chip, H = chip + 2, scale = 2;
+  const [face, lip] = { pencil: ['#F49CB0', '#D96F8A'], picker: ['#A9C1EC', '#7F9BD1'] }[tool] || ['#F8FAFC', '#C6CFDB'];
   const can = document.createElement('canvas');
   can.width = W * scale; can.height = H * scale;
   const g = can.getContext('2d');
   g.scale(scale, scale);
   const rr = (x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
-  rr(0, 2, chip, chip, 6); g.fillStyle = tool === 'pencil' ? '#D96F8A' : '#C6CFDB'; g.fill();
-  rr(0, 0, chip, chip, 6); g.fillStyle = tool === 'pencil' ? '#F49CB0' : '#F8FAFC'; g.fill();
+  rr(0, 2, chip, chip, 6); g.fillStyle = lip; g.fill();
+  rr(0, 0, chip, chip, 6); g.fillStyle = face; g.fill();
   g.save();
   g.translate(3, 3); g.scale(12 / 24, 12 / 24);
   g.lineWidth = 2.6; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#262B36';
@@ -207,6 +208,8 @@ const CHIP_OFFSET = { x: 13, y: 15 }; // tucked under the right of the system ar
 function applyCursor() {
   const tool = state.activeTool;
   const on = !!tool && !menu && !!state.settings;
+  const picking = tool === 'picker';
+  if (!picking) shot = null; // the picker's photo is only kept while it's out
   ring.classList.toggle('pencil', tool === 'pencil');
   if (on) {
     const s = state.settings;
@@ -224,8 +227,12 @@ function applyCursor() {
   } else {
     badge.dataset.tool = '';
   }
-  ring.classList.toggle('show', on && !!pos);
-  badge.classList.toggle('show', on && !!pos);
+  // The picker shows only its loupe (once the photo has arrived): nothing of ours may sit under the cursor.
+  ring.classList.toggle('show', on && !!pos && !picking);
+  badge.classList.toggle('show', on && !!pos && !picking);
+  const loupeOn = on && picking && !!shot && !!pos;
+  if (loupeOn) loupe.classList.remove('took');
+  loupe.classList.toggle('show', loupeOn);
   follow();
 }
 // Positions use the `translate` property, not `transform`: CSS applies `scale` after `transform`,
@@ -235,6 +242,78 @@ function follow() {
   ring.style.translate = `${pos.x}px ${pos.y}px`;
   badge.style.translate = `${pos.x + CHIP_OFFSET.x}px ${pos.y + CHIP_OFFSET.y}px`;
   if (menu) pointerEl.style.translate = `${pos.x}px ${pos.y}px`;
+  if (shot) placeLoupe();
+  if (note.classList.contains('show')) note.style.translate = `${pos.x + 16}px ${pos.y + 20}px`;
+}
+
+// ---------- color picker ----------
+// The main process photographs the screen once; this layer samples its own photo. The loupe shows the
+// screen's real pixels (11 × 11 of them) around the cursor, and stays clear of the spot it samples.
+const loupe = document.getElementById('loupe');
+const loupeCv = loupe.querySelector('canvas');
+const loupeCtx = loupeCv.getContext('2d');
+const note = document.getElementById('note');
+const GRID = 11, CELL = 9; // 99px across
+let shot = null; // { width, height, data: BGRA } for this screen, while the picker is out
+let loupeFrame = 0;
+const hex2 = (n) => n.toString(16).padStart(2, '0').toUpperCase();
+function pixel(ix, iy) {
+  ix = Math.min(shot.width - 1, Math.max(0, ix));
+  iy = Math.min(shot.height - 1, Math.max(0, iy));
+  const i = (iy * shot.width + ix) * 4;
+  return [shot.data[i + 2], shot.data[i + 1], shot.data[i]]; // BGRA -> RGB
+}
+// The photo's pixel under a point on this layer (the photo is in device pixels, the layer in points).
+const toPhoto = (x, y) => [Math.floor((x * shot.width) / innerWidth), Math.floor((y * shot.height) / innerHeight)];
+function colorAt(x, y) {
+  if (!shot) return null;
+  const [r, g, b] = pixel(...toPhoto(x, y));
+  return `#${hex2(r)}${hex2(g)}${hex2(b)}`;
+}
+function placeLoupe() {
+  // Below and right of the cursor, flipping at the screen's edges so it never goes off.
+  const w = loupe.offsetWidth || 115, h = loupe.offsetHeight || 150, gap = 22;
+  const left = pos.x + gap + w > innerWidth;
+  const up = pos.y + gap + h > innerHeight;
+  const x = left ? pos.x - gap - w : pos.x + gap;
+  const y = up ? pos.y - gap - h : pos.y + gap;
+  loupe.style.translate = `${x}px ${y}px`;
+  loupe.style.setProperty('--ox', left ? '100%' : '0%');
+  loupe.style.setProperty('--oy', up ? '100%' : '0%');
+  if (!loupeFrame) loupeFrame = requestAnimationFrame(drawLoupe); // at most once a frame
+}
+function drawLoupe() {
+  loupeFrame = 0;
+  if (!shot || !pos) return;
+  const dpr = devicePixelRatio || 1, size = GRID * CELL;
+  if (loupeCv.width !== size * dpr) { loupeCv.width = loupeCv.height = size * dpr; }
+  const g = loupeCtx;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const [cx, cy] = toPhoto(pos.x, pos.y);
+  const half = (GRID - 1) / 2;
+  for (let j = 0; j < GRID; j++) {
+    for (let i = 0; i < GRID; i++) {
+      const [r, gg, b] = pixel(cx - half + i, cy - half + j);
+      g.fillStyle = `rgb(${r},${gg},${b})`;
+      g.fillRect(i * CELL, j * CELL, CELL, CELL);
+    }
+  }
+  // The pixel you'd take: outlined in graphite and paper, so it shows on any color.
+  const o = half * CELL;
+  g.lineWidth = 1.5;
+  g.strokeStyle = 'rgba(248,250,252,0.95)'; g.strokeRect(o - 0.75, o - 0.75, CELL + 1.5, CELL + 1.5);
+  g.strokeStyle = '#262B36'; g.strokeRect(o - 2.25, o - 2.25, CELL + 4.5, CELL + 4.5);
+  const c = colorAt(pos.x, pos.y);
+  loupe.querySelector('.sw').style.setProperty('--c', c);
+  loupe.querySelector('b').textContent = c;
+}
+let noteTimer = null;
+function showNote(text) {
+  note.textContent = text;
+  if (pos) note.style.translate = `${pos.x + 16}px ${pos.y + 20}px`;
+  note.classList.add('show');
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => note.classList.remove('show'), 3200);
 }
 
 // ---------- wheel pointer ----------
@@ -303,7 +382,7 @@ function closeWheel(choice) {
   menu = null;
   pointerEl.classList.remove('show');
   if (svg && m) {
-    const picked = choice && typeof choice === 'object' ? 'pencil' : choice; // a color picks the pencil
+    const picked = choice && (typeof choice === 'object' || choice === 'picker') ? 'pencil' : choice; // a color, or the picker, presses the pencil
     if (picked) svg.querySelector(`.slice[data-i="${m.items.indexOf(picked)}"]`)?.classList.add('picked', 'hot');
     svg.classList.remove('enter');
     svg.classList.add('leave');
@@ -354,6 +433,20 @@ scrawl.on('menu:hover', (h) => {
   setPointerHover(h);
 });
 scrawl.on('menu:close', closeWheel);
+scrawl.on('pick:image', (img) => {
+  if (state.activeTool !== 'picker') return;
+  shot = img;
+  applyCursor();
+  if (pos) placeLoupe();
+});
+scrawl.on('pick:click', (p) => {
+  const at = performance.now() - lastLocal < 150 && pos ? pos : p;
+  const c = colorAt(at.x, at.y);
+  if (!c) return; // the photo isn't here yet
+  loupe.classList.add('took'); // the loupe dips away as the pencil comes back in the new color
+  scrawl.send('pick:color', c);
+});
+scrawl.on('pick:denied', () => showNote('To pick colors, allow Pane in Privacy & Security › Screen Recording, then reopen Pane.'));
 scrawl.on('strokes:clear', rewindClear);
 scrawl.on('stroke:undo', undoStroke);
 scrawl.on('stroke:redo', redoStroke);
