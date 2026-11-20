@@ -19,7 +19,7 @@
   button:focus { outline: none; }
   button:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft); border-radius: 12px; }
 
-  .page { display: grid; grid-template-columns: 340px 452px; gap: 34px; padding: 46px 38px 38px; width: 900px; }
+  .page { display: grid; grid-template-columns: 340px 452px; gap: 30px; padding: 34px 38px 28px; width: 900px; align-items: start; }
 
   /* Lull-style surfaces: a flat fill with a darker lip of the same hue underneath, never an outline. */
   .chunky { position: relative; border-radius: var(--r); background: var(--fill); box-shadow: 0 var(--lip) 0 var(--lip-color); }
@@ -31,22 +31,22 @@
   @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(0.5); } }
 
   /* ---------- intro ---------- */
-  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; margin-bottom: 20px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; margin-bottom: 14px; }
   .brand .mark { display: inline-flex; width: 30px; height: 22px; align-items: center; justify-content: center; }
   .brand .mark svg { width: 30px; height: 22px; }
   .brand:hover svg .scribble { animation: scribble 900ms var(--smooth); }
   @keyframes scribble { from { stroke-dashoffset: 1400; } }
   .version { font-size: 12px; font-weight: 700; color: var(--ink-2); background: var(--well); border-radius: 8px; padding: 2px 8px; margin-left: 2px; }
   .version:empty { display: none; }
-  h1 { font-size: 30px; line-height: 1.12; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
-  .lede { color: var(--ink-2); font-weight: 500; margin: 10px 0 0; line-height: 1.5; }
+  h1 { font-size: 26px; line-height: 1.12; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+  .lede { color: var(--ink-2); font-weight: 500; margin: 8px 0 0; line-height: 1.45; }
 
-  .keyrow { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
+  .keyrow { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 18px; }
   .keyslot { display: grid; gap: 8px; justify-items: center; }
   .keylabel { font-size: 12px; font-weight: 600; color: var(--ink-2); }
   .keys { display: flex; gap: 10px; align-items: center; }
   .keywell {
-    --r: 22px; min-height: 88px; min-width: 88px; justify-content: center; padding: 12px; display: inline-flex; align-items: center; gap: 10px;
+    --r: 22px; min-height: 78px; min-width: 78px; justify-content: center; padding: 12px; display: inline-flex; align-items: center; gap: 10px;
     border-radius: 22px; background: color-mix(in srgb, var(--well) 100%, transparent); position: relative;
     transition: background 160ms ease, transform 300ms var(--bouncy);
   }
@@ -58,7 +58,7 @@
   @keyframes march { to { stroke-dashoffset: -12; } }
   .keywell.listening .ants { opacity: 0.6; }
   .keycap {
-    min-width: 56px; height: 54px; padding: 0 14px; display: grid; place-items: center; border-radius: 14px;
+    min-width: 52px; height: 48px; padding: 0 13px; display: grid; place-items: center; border-radius: 14px;
     background: var(--card); box-shadow: 0 6px 0 var(--accent); margin-bottom: 6px;
     font-size: 26px; font-weight: 700; transition: transform 260ms var(--bouncy), box-shadow 260ms var(--bouncy);
   }
@@ -66,7 +66,7 @@
   .keywell:hover .keycap { transform: translateY(-2px); box-shadow: 0 8px 0 var(--accent); }
   .keywell:active .keycap { transform: translateY(5px); box-shadow: 0 1px 0 var(--accent-lip); }
   .keywell .prompt { font-size: 18px; font-weight: 700; padding: 0 10px; }
-  .caption { color: var(--ink-2); font-size: 12px; font-weight: 500; margin: 10px 0 0; min-height: 17px; }
+  .caption { color: var(--ink-2); font-size: 12px; font-weight: 500; margin: 8px 0 0; min-height: 17px; }
   .caption.warn { color: var(--accent-ink); }
 
   .collapse { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 420ms var(--smooth), opacity 260ms ease, margin 420ms var(--smooth); }
@@ -85,7 +85,7 @@
   .pill:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--accent-lip); }
 
   /* On/off: a pill keycap like Lull's Start button, with the status beside it. */
-  .power { margin-top: 26px; display: flex; align-items: center; gap: 14px; }
+  .power { margin-top: 18px; display: flex; align-items: center; gap: 14px; }
   .power-btn {
     flex: none; height: 42px; padding: 0 20px 0 16px; border-radius: 21px; display: inline-flex; align-items: center; gap: 8px;
     font-size: 15px; font-weight: 800; background: var(--card); box-shadow: 0 4px 0 var(--card-lip); margin-bottom: 4px;
@@ -115,7 +115,7 @@
   .swap.out { opacity: 0; transform: translateY(6px); }
 
   /* ---------- choices card ---------- */
-  .card { --fill: var(--card); --lip: 7px; --lip-color: var(--card-lip); --r: 28px; padding: 22px; }
+  .card { --fill: var(--card); --lip: 7px; --lip-color: var(--card-lip); --r: 28px; padding: 18px 20px; }
   .head { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
   .head h2 { font-size: 16px; font-weight: 700; margin: 0; }
   .head p { color: var(--ink-2); font-size: 12px; font-weight: 500; margin: 2px 0 0; }
@@ -124,13 +124,13 @@
     background: var(--paper); margin: -8px -4px -8px 0; padding-top: 2px;
   }
 
-  .tiles { display: flex; gap: 6px; margin-top: 12px; }
+  .tiles { display: flex; gap: 6px; margin-top: 10px; }
   .tiles .tile { flex: 2 1 0; min-width: 0; }
   /* Undo and redo are half-size, on the wheel and here. */
   .tiles .tile.half { flex: 1 1 0; gap: 6px; }
   .tile.half .name { font-size: 10.5px; }
   .tile {
-    position: relative; height: 94px; border-radius: 18px; display: flex; flex-direction: column; align-items: center;
+    position: relative; height: 84px; border-radius: 18px; display: flex; flex-direction: column; align-items: center;
     justify-content: center; gap: 8px; cursor: grab; background: var(--well);
     box-shadow: 0 0 0 var(--card-lip);
     transition: background 160ms ease, box-shadow 300ms var(--bouncy), transform 300ms var(--bouncy),
@@ -164,7 +164,7 @@
   .tile.nope { animation: nope 360ms ease; }
   @keyframes nope { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
 
-  .rows { display: grid; gap: 14px; margin-top: 24px; }
+  .rows { display: grid; gap: 11px; margin-top: 16px; }
   .row { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
   .row h3 { font-size: 14px; font-weight: 600; margin: 0; }
   .row p { color: var(--ink-2); font-size: 12px; font-weight: 500; margin: 1px 0 0; }
@@ -206,6 +206,10 @@
   }
   .switch:active::after { width: 22px; }
   .switch[aria-checked="true"] { background: var(--accent); }
+  .login-line { display: flex; align-items: center; gap: 10px; margin-top: 16px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); width: max-content; cursor: pointer; -webkit-app-region: no-drag; }
+  .switch.small { width: 36px; height: 21px; }
+  .switch.small::after { width: 15px !important; height: 15px !important; top: 3px !important; left: 3px !important; }
+  .switch.small[aria-checked="true"]::after { transform: translateX(15px) !important; }
   .switch[aria-checked="true"]::after { transform: translateX(20px); }
   .switch[aria-checked="true"]:active::after { transform: translateX(16px); }
 
@@ -325,7 +329,7 @@
   .demo-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 0 var(--accent); }
   .demo-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--accent-lip); }
   .demo-btn:focus-visible { box-shadow: 0 4px 0 var(--accent), 0 0 0 3px var(--accent-soft); border-radius: 16px; }
-  .keyrow { margin-top: 20px; }
+  .keyrow { margin-top: 16px; }
 
   .demo {
     position: fixed; inset: 0; z-index: 30; display: grid; place-items: center;
@@ -419,12 +423,15 @@
   }
   .keycap.sided { padding-bottom: 8px; }
   .keycap.held-key { box-shadow: 0 2px 0 var(--accent-lip); transform: translateY(4px); }
-  .preview.spin-preview { width: 104px; height: 104px; }
+  .preview.spin-preview { width: 84px; height: 84px; margin: -6px -4px -6px 0; }
+  .preview.spin-preview svg { width: 72px; height: 72px; }
   .apps .tile { cursor: pointer; flex: 1 1 0; }
-  .apps .tile .glyph svg { height: 40px; width: auto; }
+  .apps .tile { height: 72px; gap: 3px; }
+  .apps .tile small { margin-top: -3px !important; }
+  .apps .tile .glyph svg { height: 28px; width: auto; }
   .apps .tile small { font-size: 10.5px; font-weight: 600; color: var(--ink-2); margin-top: -6px; }
   .now {
-    margin-top: 14px; display: grid; grid-template-columns: 38px 1fr auto; gap: 12px; align-items: center;
+    margin-top: 10px; display: grid; grid-template-columns: 38px 1fr auto; gap: 12px; align-items: center;
     padding: 10px 12px; border-radius: 18px; background: var(--well); min-height: 58px;
   }
   .now .rec { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: #18221F; position: relative; display: grid; place-items: center; }
@@ -469,26 +476,32 @@
   .link .note { font-size: 12px; font-weight: 600; color: var(--accent-ink); min-height: 0; margin: 0; }
   .link .note:empty { display: none; }
   .spin-row[hidden] { display: none; }
-  .slices .tile { flex: 1 1 0; cursor: grab; }
+  .row.pair { grid-template-columns: 1fr 1fr; align-items: start; }
+  .field-mini { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 6px 6px 12px; border-radius: 16px; background: var(--well); }
+  .field-mini h3 { font-size: 12.5px; }
+  .field-mini .stepper { background: var(--card); }
+  .slices .tile { flex: 1 1 0; cursor: grab; height: 58px; gap: 3px; border-radius: 15px; }
   .slices .tile.dragging { cursor: grabbing; }
-  .slices .tile .glyph svg { width: 26px; height: 26px; display: block; }
-  .slices .tile .name { font-size: 11px; }
+  .slices .tile .glyph svg { width: 20px; height: 20px; display: block; }
+  .slices .tile .name { font-size: 10.5px; }
+  .slices .tile .check, .apps .tile .check { width: 17px; height: 17px; top: -4px; right: -4px; }
+  .row.stack:has(#slices) { gap: 0; }
   .pl-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
   .pl-list {
-    display: grid; gap: 4px; max-height: 232px; overflow-y: auto; padding: 4px; margin: 0 -4px;
+    display: grid; gap: 3px; max-height: 148px; overflow-y: auto; padding: 4px; margin: 0 -4px;
     border-radius: 16px; overscroll-behavior: contain; -webkit-app-region: no-drag;
   }
   .pl-list:empty { display: none; }
   .pl {
-    display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center; text-align: left;
-    padding: 6px 10px 6px 6px; border-radius: 13px; background: var(--well); cursor: pointer; min-width: 0;
+    display: grid; grid-template-columns: 26px 1fr auto; gap: 9px; align-items: center; text-align: left;
+    padding: 4px 10px 4px 5px; border-radius: 13px; background: var(--well); cursor: pointer; min-width: 0;
     transition: transform 180ms var(--bouncy), background 160ms ease, box-shadow 200ms ease;
   }
   .pl:hover { transform: translateY(-1px); background: var(--card); box-shadow: 0 3px 0 var(--card-lip); }
   .pl:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--card-lip); }
-  .pl .disc { width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background: #18221F; position: relative; display: grid; place-items: center; }
+  .pl .disc { width: 26px; height: 26px; border-radius: 50%; overflow: hidden; background: #18221F; position: relative; display: grid; place-items: center; }
   .pl .disc img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .pl .disc i { width: 13px; height: 13px; border-radius: 50%; background: var(--c, #FFC94D); }
+  .pl .disc i { width: 11px; height: 11px; border-radius: 50%; background: var(--c, #FFC94D); }
   .pl .disc::after { content: ""; position: absolute; width: 4px; height: 4px; border-radius: 50%; background: var(--well); }
   .pl b { font-size: 12.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .pl small { font-size: 11px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
@@ -550,6 +563,7 @@
         <span class="dot"></span><span class="swap" id="statusText">Checking access…</span>
       </div>
     </div>
+    <label class="login-line rise" style="--d:280ms"><button class="switch login small" role="switch" aria-checked="false" aria-label="Open at login"></button>Open Pane at login</label>
   </section>
 
   <section class="card chunky rise" style="--d:90ms" aria-label="Settings">
@@ -578,10 +592,6 @@
       <div class="row rise" style="--d:420ms">
         <div><h3>Wheel size</h3><p>How big the wheel opens.</p></div>
         <div class="stepper" data-key="wheelSize" data-values="60,76,96" data-labels="Small,Medium,Large"></div>
-      </div>
-      <div class="row rise" style="--d:460ms">
-        <div><h3>Open at login</h3><p>Start Pane with your Mac.</p></div>
-        <button class="switch login" role="switch" aria-checked="false" aria-label="Open at login"></button>
       </div>
     </div>
   </section>
@@ -626,6 +636,7 @@
         <span class="dot"></span><span class="swap" id="awayStatusText">Checking…</span>
       </div>
     </div>
+    <label class="login-line rise" style="--d:280ms"><button class="switch login small" role="switch" aria-checked="false" aria-label="Open at login"></button>Open Pane at login</label>
   </section>
 
   <section class="card chunky rise" style="--d:90ms" aria-label="Away settings">
@@ -672,10 +683,6 @@
         <div><h3>Hide the pointer</h3><p>Hides the mouse while you’re away.</p></div>
         <button class="switch" id="hidePointer" role="switch" aria-checked="true" aria-label="Hide the pointer"></button>
       </div>
-      <div class="row rise" style="--d:460ms">
-        <div><h3>Open at login</h3><p>Start Pane with your Mac.</p></div>
-        <button class="switch login" role="switch" aria-checked="false" aria-label="Open at login"></button>
-      </div>
     </div>
   </section>
 </div>
@@ -687,7 +694,7 @@
       <span class="version"></span>
     </div>
     <h1 class="rise" style="--d:60ms">Hold a key.<br>Spin the music.</h1>
-    <p class="lede rise" style="--d:120ms">Hold the Spin key, slide to play, skip or a song, and let go. Rest on the edge of the songs to scroll the whole list. Back to the middle puts everything back.</p>
+    <p class="lede rise" style="--d:120ms">Hold the Spin key, slide to a slice or a song, and let go. Back to the middle cancels.</p>
 
     <div class="keyrow rise" style="--d:160ms">
       <div class="keyslot">
@@ -717,6 +724,7 @@
         <span class="dot"></span><span class="swap" id="spinStatusText">Checking…</span>
       </div>
     </div>
+    <label class="login-line rise" style="--d:280ms"><button class="switch login small" role="switch" aria-checked="false" aria-label="Open at login"></button>Open Pane at login</label>
   </section>
 
   <section class="card chunky rise" style="--d:90ms" aria-label="Spin settings">
@@ -736,28 +744,24 @@
 
     <div class="rows">
       <div class="row stack rise" style="--d:290ms">
-        <div><h3>Wheel</h3><p id="slicesHint">Click to take a slice off the wheel. Drag to reorder.</p></div>
+        <div><h3>Wheel</h3><p id="slicesHint">Click to remove a slice. Drag to reorder.</p></div>
         <div class="tiles slices" id="slices" role="group" aria-label="Music wheel slices"></div>
       </div>
-      <div class="row rise" style="--d:300ms">
-        <div><h3>Songs each way</h3><p>How many coming and past songs fan out.</p></div>
-        <div class="stepper" data-key="spin.count" data-values="3,4,5,6"></div>
-      </div>
-      <div class="row rise" style="--d:320ms">
-        <div><h3>Wheel size</h3><p>How big the music wheel opens.</p></div>
-        <div class="stepper" data-key="spin.size" data-values="60,76,96" data-labels="Small,Medium,Large"></div>
+      <div class="row pair rise" style="--d:300ms" title="Songs: how many coming and past songs fan out. Size: how big the music wheel opens.">
+        <div class="field-mini"><h3>Songs</h3><div class="stepper" data-key="spin.count" data-values="3,4,5,6"></div></div>
+        <div class="field-mini"><h3>Size</h3><div class="stepper" data-key="spin.size" data-values="60,76,96" data-labels="Small,Medium,Large"></div></div>
       </div>
       <div class="row stack spin-row rise" style="--d:330ms" id="playlistRow">
         <div class="pl-head">
-          <div><h3>Playlists</h3><p>Pick one here, or from the Playlists slice on the wheel. It starts from the top.</p></div>
+          <div><h3>Playlists</h3><p>Click one to start it from the top.</p></div>
           <button class="mini" id="plRefresh">Refresh</button>
         </div>
         <div class="pl-list" id="plList" role="list" aria-label="Playlists"></div>
         <p class="pl-note" id="plNote" aria-live="polite"></p>
       </div>
       <div class="row stack spin-row rise" style="--d:340ms" id="spotifyRow">
-        <div><h3>Spotify queue</h3><p>Spotify keeps its queue to itself. Link your account once to see it, and your playlists, on the wheel. Play, skip and volume work without this.</p></div>
-        <div class="linked" id="spotifyLinked" hidden><span><span class="dot"></span><span id="spotifyName">Linked</span></span><button class="mini" id="spotifyUnlink">Unlink</button></div>
+        <div id="spotifyAbout"><h3>Spotify queue</h3><p>Spotify keeps its queue to itself. Link your account once to see it, and your playlists, on the wheel. Play, skip and volume work without this.</p></div>
+        <div class="linked" id="spotifyLinked" hidden><span><span class="dot"></span><span id="spotifyName">Spotify linked</span></span><button class="mini" id="spotifyUnlink">Unlink</button></div>
         <p class="pl-note" id="spotifyRelink" hidden>Link again (Unlink, then Link Spotify) so songs and playlists start without bringing Spotify’s window forward.</p>
         <div class="link" id="spotifyLink">
           <ol>
@@ -771,10 +775,6 @@
           </div>
           <p class="note" id="spotifyNote"></p>
         </div>
-      </div>
-      <div class="row rise" style="--d:380ms">
-        <div><h3>Open at login</h3><p>Start Pane with your Mac.</p></div>
-        <button class="switch login" role="switch" aria-checked="false" aria-label="Open at login"></button>
       </div>
     </div>
   </section>

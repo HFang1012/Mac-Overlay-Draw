@@ -436,7 +436,10 @@ function update() {
   if (typeof updateSpin === 'function') updateSpin();
 }
 
-scrawl.invoke('settings:get').then(({ settings, version }) => {
+// Wait for every page's script (away-settings.js, spin-settings.js) before the first render: the
+// reply can otherwise arrive while they're still loading, and their pages would miss it.
+const domReady = new Promise((r) => (document.readyState === 'loading' ? addEventListener('DOMContentLoaded', r, { once: true }) : r()));
+domReady.then(() => scrawl.invoke('settings:get')).then(({ settings, version }) => {
   S = settings;
   document.querySelectorAll('.version').forEach((v) => { v.textContent = version ? `Version ${version}` : ''; });
   ['hotkey', 'drawKey', 'spinKey'].forEach((which, i) => {

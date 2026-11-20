@@ -311,7 +311,8 @@ function showSpotify(acct, redirect) {
   if (redirect) document.getElementById('spotifyRedirect').textContent = redirect;
   document.getElementById('spotifyLinked').hidden = !acct.connected;
   document.getElementById('spotifyLink').hidden = acct.connected;
-  document.getElementById('spotifyName').textContent = acct.name ? `Linked as ${acct.name}` : 'Linked';
+  document.getElementById('spotifyName').textContent = acct.name ? `Spotify linked as ${acct.name}` : 'Spotify linked';
+  document.getElementById('spotifyAbout').hidden = acct.connected; // once linked, one line is enough
   document.getElementById('spotifyRelink').hidden = !acct.connected || acct.canPlay !== false;
   const id = document.getElementById('spotifyId');
   if (!id.value && acct.clientId) id.value = acct.clientId;
