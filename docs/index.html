@@ -107,13 +107,14 @@
 
   .steps em { font-style: normal; font-weight: 800; color: var(--ink); }
 
-  /* Optional Terminal route: tucked away, opens with a click. */
-  .terminal { max-width: 33em; margin: 22px auto 0; padding-left: 50px; color: var(--ink-2); font-weight: 600; font-size: 15px; }
-  .terminal summary { cursor: pointer; font-weight: 800; color: var(--ink); list-style: none; display: inline-flex; align-items: center; gap: 8px; }
-  .terminal summary::-webkit-details-marker { display: none; }
-  .terminal summary::before { content: ""; width: 8px; height: 8px; border-right: 2.5px solid var(--pink-lip); border-bottom: 2.5px solid var(--pink-lip); rotate: -45deg; transition: rotate 300ms var(--bouncy); }
-  .terminal[open] summary::before { rotate: 45deg; }
-  .terminal p { margin: 10px 0 0; }
+  /* One-command install: shown openly, it's the smoothest way in. */
+  .alt { color: var(--ink-2); font-size: 14px; font-weight: 600; margin: 6px 0 0; }
+  .alt a { color: var(--ink); font-weight: 800; text-decoration-color: var(--pink); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  .oneline { max-width: 33em; margin: 44px auto 0; padding-left: 50px; color: var(--ink-2); font-weight: 600; font-size: 15px; scroll-margin-top: 40px; }
+  .oneline h3 { margin: 0; font-size: 19px; font-weight: 800; color: var(--ink); }
+  .oneline p { margin: 6px 0 0; }
+  .oneline:target .cmd { animation: glow 1.4s ease; }
+  @keyframes glow { 30% { box-shadow: 0 4px 0 var(--card-lip), 0 0 0 4px var(--pink); } }
   .cmd { margin-top: 10px; display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 16px; border-radius: 16px; background: var(--card); box-shadow: 0 4px 0 var(--card-lip); }
   .cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; color: var(--ink); }
   .cmd button {
@@ -122,7 +123,7 @@
     transition: transform 180ms var(--bouncy), box-shadow 180ms var(--bouncy);
   }
   .cmd button:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--pink-lip); }
-  @media (max-width: 600px) { .terminal { padding-left: 0; } }
+  @media (max-width: 600px) { .oneline { padding-left: 0; } }
 
   footer { text-align: center; color: var(--ink-2); font-size: 14px; font-weight: 600; padding: 72px 24px 48px; }
   footer a { font-weight: 800; text-decoration-color: var(--pink); text-decoration-thickness: 2px; text-underline-offset: 3px; }
@@ -160,6 +161,7 @@
       Download for Mac
     </a>
     <p class="fine rise" style="--d:380ms" id="fine">For Macs with Apple silicon.</p>
+    <p class="alt rise" style="--d:420ms"><a href="#one-command">Or install with one Terminal command</a>, with no security prompt.</p>
   </section>
 
   <section class="install" aria-labelledby="install-title">
@@ -205,14 +207,14 @@
       <li><span><strong>Turn on Scrawl in Accessibility.</strong> Open System Settings, then Privacy &amp; Security, then Accessibility. Scrawl needs this to notice when you hold <kbd>⌥</kbd>.</span></li>
     </ol>
 
-    <details class="terminal">
-      <summary>Or use Terminal instead of step 2</summary>
-      <p>This tells macOS you trust the copy of Scrawl you downloaded, so it opens without the warning.</p>
+    <div class="oneline" id="one-command">
+      <h3>Or install with one command</h3>
+      <p>Paste this into Terminal. It downloads Scrawl, puts it in Applications and opens it, with no security prompt. Run it again any time to update.</p>
       <div class="cmd">
-        <code id="cmd">xattr -dr com.apple.quarantine /Applications/Scrawl.app</code>
+        <code id="cmd">curl -fsSL https://hfang1012.github.io/Mac-Overlay-Draw/install.sh | sh</code>
         <button type="button" id="copy">Copy</button>
       </div>
-    </details>
+    </div>
   </section>
 </main>
 
@@ -249,6 +251,9 @@
     const repo = location.pathname.split('/').filter(Boolean)[0] || host;
     const base = `https://github.com/${owner}/${repo}`;
     document.getElementById('source').href = base;
+    // The installer lives next to this page.
+    const dir = location.pathname.replace(/[^/]*$/, '');
+    document.getElementById('cmd').textContent = `curl -fsSL ${location.origin}${dir}install.sh | sh`;
     // The direct file link works from the first click: GitHub sends it as a download (an attachment),
     // so the browser saves Scrawl.dmg instead of opening a page.
     button.href = `${base}/releases/latest/download/Scrawl.dmg`;
