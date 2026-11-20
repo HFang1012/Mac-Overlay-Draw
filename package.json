@@ -1,12 +1,14 @@
 {
-  "name": "scrawl",
+  "name": "pane",
   "version": "1.0.5",
-  "description": "Hold a key, pick a tool from a wheel, draw on your screen.",
+  "description": "Small tools that sit on top of your Mac: Scrawl to draw on your screen, Away to blur it while you step away.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "package": "node scripts/package.js",
     "dmg": "sh scripts/dmg.sh",
+    "icons": "electron scripts/icons.js",
+    "dmg:background": "electron scripts/dmg-background.js",
     "release": "npm run package && npm run dmg",
     "ship": "npm version patch -m \"Release %s\" && git push --follow-tags",
     "ship:minor": "npm version minor -m \"Release %s\" && git push --follow-tags",
@@ -19,5 +21,5 @@
     "@electron/packager": "^20.3.0",
     "electron": "^45.4.1"
   },
-  "productName": "Scrawl"
+  "productName": "Pane"
 }

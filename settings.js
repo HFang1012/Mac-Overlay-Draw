@@ -33,6 +33,7 @@ for (const well of wells) {
   well.addEventListener('click', async () => {
     well.blur(); // the next key press shouldn't paint a focus ring on the button
     const which = well.dataset.which;
+    if (typeof cancelAwayListening === 'function') cancelAwayListening();
     if (listening) {
       const was = listening;
       stopListening();
@@ -41,7 +42,7 @@ for (const well of wells) {
     }
     const ok = await scrawl.invoke('bind:start', which);
     if (!ok) {
-      setCaption('Allow Accessibility access first, so Scrawl can hear your keys.', true);
+      setCaption('Allow Accessibility access first, so Pane can hear your keys.', true);
       $('access').classList.add('open');
       shake($('access'));
       return;
@@ -156,7 +157,7 @@ function makeTile(id, i) {
   el.tabIndex = 0;
   el.setAttribute('role', 'switch');
   el.innerHTML = `<span class="glyph">${Wheel.glyph(id, info.half ? 34 : 44)}</span><span class="name">${info.name}</span>
-    <span class="check" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5.2l2 2L8 3" fill="none" stroke="#F8FAFC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+    <span class="check" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5.2l2 2L8 3" fill="none" stroke="#FBF8F3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
 
   el.addEventListener('keydown', (e) => {
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleTool(id, el); }
@@ -257,7 +258,7 @@ let hintTimer;
 function flashHint(text) {
   const p = $('toolsHint');
   p.textContent = text;
-  p.style.color = 'var(--pink-lip)';
+  p.style.color = 'var(--accent-ink)';
   clearTimeout(hintTimer);
   hintTimer = setTimeout(() => {
     p.textContent = 'Click a tool to take it off the wheel, or drag it to a new spot. Point at the pencil on the wheel to pick a color.';
@@ -330,7 +331,7 @@ function step(el, dir) {
 }
 
 // ---------- login ----------
-$('login').addEventListener('click', () => save({ openAtLogin: !S.openAtLogin }));
+document.querySelectorAll('.switch.login').forEach((b) => b.addEventListener('click', () => save({ openAtLogin: !S.openAtLogin })));
 
 // ---------- access + status ----------
 let grantedChecks = 0;
@@ -341,7 +342,7 @@ function swapText(el, text) {
 }
 // ---------- on / off ----------
 $('power').addEventListener('click', () => { $('power').blur(); save({ enabled: !S.enabled }).then(updateStatus); });
-scrawl.on('settings:changed', (s) => { S = s; update(); updateStatus(); }); // e.g. from the Scrawl menu
+scrawl.on('settings:changed', (s) => { S = s; update(); updateStatus(); }); // e.g. from the Pane menu
 
 function updateStatus() {
   const { trusted, listening: on } = status;
@@ -367,19 +368,12 @@ function updateStatus() {
     : on
       ? `On. Hold ${S.hotkey.symbol} for the wheel, ${S.drawKey.symbol} to draw.`
       : trusted ? 'Starting up…' : 'Waiting for Accessibility access.');
+  if (typeof updateAwayStatus === 'function') updateAwayStatus();
 }
 async function pollStatus() {
   status = await scrawl.invoke('perm:check');
   updateStatus();
 }
-
-// ---------- window size follows the content ----------
-const page = $('page');
-let fitFrame = 0;
-new ResizeObserver(() => {
-  cancelAnimationFrame(fitFrame);
-  fitFrame = requestAnimationFrame(() => scrawl.send('window:fit', page.offsetHeight));
-}).observe(page);
 
 // Entrance animations hold their end state; drop them once played so hover and press transforms can take over.
 document.addEventListener('animationend', (e) => {
@@ -392,17 +386,19 @@ function update() {
   renderTiles();
   renderSwatches();
   renderSteppers();
-  $('login').setAttribute('aria-checked', S.openAtLogin);
+  document.querySelectorAll('.switch.login').forEach((b) => b.setAttribute('aria-checked', S.openAtLogin));
+  if (typeof updateAway === 'function') updateAway();
 }
 
 scrawl.invoke('settings:get').then(({ settings, version }) => {
   S = settings;
-  $('version').textContent = version ? `Version ${version}` : '';
+  document.querySelectorAll('.version').forEach((v) => { v.textContent = version ? `Version ${version}` : ''; });
   ['hotkey', 'drawKey'].forEach((which, i) => {
     renderKey(which, true);
     wellFor(which).querySelector('.keycap').style.setProperty('--d', `${260 + i * 80}ms`);
   });
   update();
+  if (typeof startSwitcher === 'function') startSwitcher();
   pollStatus();
   setInterval(pollStatus, 1500);
 });

@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Scrawl</title>
-<meta name="description" content="Scrawl for Mac: hold a key, pick a pencil from the wheel, and draw on anything on your screen.">
+<title>Pane</title>
+<meta name="description" content="Pane for Mac: small tools that sit on top of your screen. Scrawl lets you draw on anything; Away blurs your screen and leaves a note while you step out.">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<meta property="og:title" content="Scrawl">
-<meta property="og:description" content="Hold a key. Draw on anything.">
+<meta property="og:title" content="Pane">
+<meta property="og:description" content="Draw on your screen. Blur it when you step away.">
 <meta property="og:image" content="icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,17 +16,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --paper: #E3E8EF;      /* sketch paper, the app's window background */
-    --paper-deep: #D3DAE4;
-    --card: #F8FAFC;
-    --card-lip: #DCE2EA;
-    --well: #EBEFF4;
-    --ink: #262B36;        /* graphite */
-    --ink-2: #5E6779;
-    --pink: #F49CB0;       /* eraser pink */
-    --pink-lip: #D96F8A;
-    --sky: #A9C1EC;
-    --sky-lip: #7F9BD1;
+    --paper: #ECE6DD;      /* warm oat paper, the app's window background */
+    --paper-deep: #DFD7CB;
+    --card: #FBF8F3;
+    --card-lip: #E4DBCE;
+    --well: #F2EDE5;
+    --ink: #2B2733;        /* plum graphite */
+    --ink-2: #6A6272;
+    --accent: #B9A5F4;     /* lilac */
+    --accent-lip: #8E76DC;
+    --accent-ink: #6A50C4;
+    --peach: #FFC593;      /* apricot */
+    --peach-lip: #E39C60;
     --font: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
     --bouncy: linear(0, 0.055, 0.192, 0.373, 0.565, 0.745, 0.898, 1.016, 1.098, 1.144, 1.162, 1.158, 1.138, 1.11, 1.079, 1.049, 1.023, 1.002, 0.987, 0.978, 0.974, 0.974, 0.976, 0.981, 0.986, 0.991, 0.995, 0.999, 1);
     --smooth: linear(0, 0.067, 0.217, 0.391, 0.558, 0.7, 0.811, 0.893, 0.95, 0.985, 1.006, 1.016, 1.02, 1.019, 1.016, 1.013, 1.01, 1.007, 1.004, 1.003, 1.001, 1, 1);
@@ -35,36 +36,112 @@
   html { background: var(--paper); }
   body {
     margin: 0; color: var(--ink); font-family: var(--font); font-size: 17px; line-height: 1.5;
-    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; overflow-x: hidden;
   }
   a { color: inherit; }
-  :focus-visible { outline: 3px solid var(--pink-lip); outline-offset: 4px; border-radius: 8px; }
+  :focus-visible { outline: 3px solid var(--accent-lip); outline-offset: 4px; border-radius: 8px; }
 
-  main { max-width: 720px; margin: 0 auto; padding: 88px 24px 56px; }
+  main { max-width: 860px; margin: 0 auto; padding: 88px 24px 56px; }
 
   /* ---------- hero ---------- */
-  .hero { text-align: center; }
-  .icon { width: 128px; height: 128px; display: block; margin: 0 auto; filter: drop-shadow(0 14px 22px rgba(38, 43, 54, 0.18)); }
+  .hero { text-align: center; max-width: 720px; margin: 0 auto; }
+  .icon { width: 128px; height: 128px; display: block; margin: 0 auto; filter: drop-shadow(0 14px 22px rgba(43, 39, 51, 0.2)); }
   h1 { font-size: 56px; line-height: 1; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 0; }
   .lede { color: var(--ink-2); font-size: 19px; font-weight: 600; max-width: 30em; margin: 14px auto 0; }
 
-  /* The download button is a keycap: a pink face on a darker lip that presses in. */
+  /* The download button is a keycap: a lilac face on a darker lip that presses in. */
   .download {
     display: inline-flex; align-items: center; gap: 12px; margin-top: 34px;
     padding: 0 30px; height: 60px; border-radius: 30px;
-    background: var(--pink); box-shadow: 0 6px 0 var(--pink-lip);
+    background: var(--accent); box-shadow: 0 6px 0 var(--accent-lip);
     font-size: 19px; font-weight: 800; text-decoration: none; color: var(--ink);
     transition: transform 220ms var(--bouncy), box-shadow 220ms var(--bouncy);
   }
-  .download:hover { transform: translateY(-2px); box-shadow: 0 8px 0 var(--pink-lip); }
-  .download:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--pink-lip); }
+  .download:hover { transform: translateY(-2px); box-shadow: 0 8px 0 var(--accent-lip); }
+  .download:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--accent-lip); }
   .download svg { width: 22px; height: 22px; }
   .fine { color: var(--ink-2); font-size: 14px; font-weight: 600; margin: 18px 0 0; }
 
-  /* ---------- install ---------- */
-  .install { margin-top: 96px; }
   h2 { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; text-align: center; margin: 0; }
-  .install > .sub { text-align: center; color: var(--ink-2); font-weight: 600; margin: 6px 0 0; }
+  .sub { text-align: center; color: var(--ink-2); font-weight: 600; margin: 6px 0 0; }
+
+  /* ---------- the two tools ---------- */
+  .tools { margin-top: 104px; }
+  .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 30px; }
+  .tool { background: var(--card); border-radius: 28px; box-shadow: 0 7px 0 var(--card-lip); padding: 16px 16px 24px; display: flex; flex-direction: column; }
+  .tool .tag { display: flex; align-items: center; gap: 10px; margin: 20px 8px 0; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+  .tool .tag svg { height: 24px; width: auto; flex: none; }
+  .tool p { margin: 8px 8px 0; color: var(--ink-2); font-weight: 600; font-size: 16px; }
+  .tool .keys { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 16px 8px 0; color: var(--ink-2); font-size: 14px; font-weight: 700; }
+  .tool .keys span { display: inline-flex; align-items: center; gap: 6px; }
+  kbd {
+    font-family: inherit; font-weight: 800; color: var(--ink); background: var(--card); box-shadow: 0 2px 0 var(--card-lip);
+    border-radius: 6px; padding: 0 6px; display: inline-block; min-width: 1.5em; text-align: center;
+  }
+  .tool .keys kbd { background: var(--well); box-shadow: 0 3px 0 var(--accent); padding: 1px 8px; border-radius: 8px; font-size: 15px; }
+
+  /* A little Mac screen for each tool to show off on. */
+  .screen {
+    position: relative; aspect-ratio: 16 / 10; border-radius: 18px; overflow: hidden; isolation: isolate;
+    background: linear-gradient(135deg, #D9CFC1, #E9DCCB 45%, #CFC6DA);
+  }
+  .wall { position: absolute; inset: -10px; transition: filter 700ms var(--smooth); }
+  .win { position: absolute; border-radius: 10px; background: #FFFDF9; box-shadow: 0 8px 18px rgba(43, 39, 51, 0.14); overflow: hidden; }
+  .win::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 15px; background: #EEE6DA; }
+  .win i { position: absolute; height: 8px; border-radius: 4px; background: #DED5C8; }
+  .w1 { left: 8%; top: 13%; width: 50%; height: 64%; }
+  .w2 { left: 40%; top: 32%; width: 50%; height: 56%; }
+  .w3 { left: 70%; top: 10%; width: 25%; height: 34%; background: #3B3646; }
+  .w3::before { background: #4A4456; }
+
+  /* Scrawl: the loop draws itself across the screen, with the pen dot riding the end. */
+  .scrawl-ink { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .scrawl-ink path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 9; }
+  .scrawl-ink .lip { stroke: var(--accent-lip); }
+  .scrawl-ink .ink { stroke: var(--accent); }
+  .chip {
+    position: absolute; width: 26px; height: 26px; border-radius: 9px; display: grid; place-items: center; left: 0; top: 0;
+    background: var(--accent); box-shadow: 0 3px 0 var(--accent-lip); opacity: 0; transition: opacity 200ms ease;
+  }
+  .chip svg { width: 16px; height: 16px; }
+  .scrawl-demo.drawing .chip { opacity: 1; }
+
+  /* Away: the screen blurs, soft color drifts in, and the note pops up. */
+  .away-demo .tint { position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 45%, rgba(43, 39, 51, 0.12), rgba(43, 39, 51, 0.36)); opacity: 0; transition: opacity 600ms ease; }
+  .away-demo .blob { position: absolute; width: 70%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(closest-side, var(--c), transparent); opacity: 0; filter: blur(16px); transition: opacity 900ms ease; animation: drift var(--t) ease-in-out infinite alternate; }
+  .away-demo .b1 { --c: #B9A5F4; left: -18%; top: -30%; --t: 9s; }
+  .away-demo .b2 { --c: #FFB38A; right: -22%; top: -10%; --t: 11s; }
+  .away-demo .b3 { --c: #F3A6CB; left: 26%; bottom: -55%; --t: 10s; }
+  @keyframes drift { to { transform: translate(8%, 6%) scale(1.1); } }
+  .away-demo .note {
+    position: absolute; left: 50%; top: 50%; width: 64%; padding: 14px 14px 12px; border-radius: 18px; text-align: center;
+    background: var(--card); box-shadow: 0 5px 0 var(--card-lip), 0 14px 30px rgba(22, 19, 28, 0.22);
+    transform: translate(-50%, -40%) scale(0.8); opacity: 0; transition: transform 600ms var(--bouncy), opacity 200ms ease;
+  }
+  .away-demo .note svg { height: 26px; width: auto; display: block; margin: 0 auto 6px; }
+  .away-demo .note b { display: block; font-size: 15px; line-height: 1.25; }
+  .away-demo .note small { display: inline-block; margin-top: 7px; padding: 2px 9px; border-radius: 999px; background: var(--well); color: var(--ink-2); font-size: 11px; font-weight: 700; }
+  .away-demo.away .wall { filter: blur(7px); }
+  .away-demo.away .tint { opacity: 1; }
+  .away-demo.away .blob { opacity: 0.6; }
+  .away-demo.away .note { opacity: 1; transform: translate(-50%, -58%); transition-delay: 150ms; }
+  .away-demo.away { cursor: none; }
+  .try {
+    position: absolute; right: 12px; bottom: 12px; z-index: 2; border: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 800; color: var(--ink);
+    height: 32px; padding: 0 14px; border-radius: 16px; background: var(--accent); box-shadow: 0 4px 0 var(--accent-lip);
+    transition: transform 180ms var(--bouncy), box-shadow 180ms var(--bouncy), background 200ms ease;
+  }
+  .try:hover { transform: translateY(-1px); box-shadow: 0 5px 0 var(--accent-lip); }
+  .try:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--accent-lip); }
+  .away-demo.away .try { background: var(--card); box-shadow: 0 4px 0 var(--card-lip); cursor: pointer; }
+
+  /* The corner button that switches tools, as it looks in the app. */
+  .switch-note { margin: 36px auto 0; display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; color: var(--ink-2); font-weight: 600; font-size: 15px; text-align: center; }
+  .fake-switch { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 11px 0 10px; border-radius: 16px; background: var(--card); box-shadow: 0 3px 0 var(--card-lip); color: var(--ink); font-weight: 800; font-size: 14px; }
+  .fake-switch svg.g { height: 16px; width: auto; }
+
+  /* ---------- install ---------- */
+  .install { margin-top: 104px; max-width: 720px; margin-left: auto; margin-right: auto; }
 
   /* A disk-image window, like the one the download opens. */
   .disk {
@@ -80,15 +157,15 @@
   }
   .item { display: grid; justify-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
   .item img, .item svg.folder { width: 112px; height: 112px; }
-  .item img { filter: drop-shadow(0 8px 12px rgba(38, 43, 54, 0.16)); }
+  .item img { filter: drop-shadow(0 8px 12px rgba(43, 39, 51, 0.16)); }
 
   /* The arrow is Scrawl's own loop, drawn on when the window comes into view. */
   .twirl { width: 100%; height: auto; overflow: visible; margin-top: -18px; }
   .twirl path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 13; }
-  .twirl .lip { stroke: var(--pink-lip); }
-  .twirl .ink { stroke: var(--pink); }
-  .twirl .head { fill: var(--pink); stroke: var(--pink); stroke-width: 4; stroke-linejoin: round; }
-  .twirl .head-lip { fill: var(--pink-lip); stroke: var(--pink-lip); stroke-width: 4; stroke-linejoin: round; }
+  .twirl .lip { stroke: var(--accent-lip); }
+  .twirl .ink { stroke: var(--accent); }
+  .twirl .head { fill: var(--accent); stroke: var(--accent); stroke-width: 4; stroke-linejoin: round; }
+  .twirl .head-lip { fill: var(--accent-lip); stroke: var(--accent-lip); stroke-width: 4; stroke-linejoin: round; }
   .twirl .heads { opacity: 0; transform-box: fill-box; transform-origin: center; }
   .twirl.drawn .heads { animation: head-pop 420ms var(--bouncy) forwards; animation-delay: 1050ms; }
   @keyframes head-pop { from { opacity: 0; scale: 0.2; } to { opacity: 1; scale: 1; } }
@@ -103,30 +180,28 @@
     background: var(--card); box-shadow: 0 4px 0 var(--card-lip); color: var(--ink); font-weight: 800; font-size: 15px;
   }
   .steps strong { color: var(--ink); font-weight: 800; }
-  kbd { font-family: inherit; font-weight: 800; color: var(--ink); background: var(--card); box-shadow: 0 2px 0 var(--card-lip); border-radius: 6px; padding: 0 6px; }
-
   .steps em { font-style: normal; font-weight: 800; color: var(--ink); }
 
   /* One-command install: shown openly, it's the smoothest way in. */
   .alt { color: var(--ink-2); font-size: 14px; font-weight: 600; margin: 6px 0 0; }
-  .alt a { color: var(--ink); font-weight: 800; text-decoration-color: var(--pink); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  .alt a { color: var(--ink); font-weight: 800; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
   .oneline { max-width: 33em; margin: 44px auto 0; padding-left: 50px; color: var(--ink-2); font-weight: 600; font-size: 15px; scroll-margin-top: 40px; }
   .oneline h3 { margin: 0; font-size: 19px; font-weight: 800; color: var(--ink); }
   .oneline p { margin: 6px 0 0; }
   .oneline:target .cmd { animation: glow 1.4s ease; }
-  @keyframes glow { 30% { box-shadow: 0 4px 0 var(--card-lip), 0 0 0 4px var(--pink); } }
+  @keyframes glow { 30% { box-shadow: 0 4px 0 var(--card-lip), 0 0 0 4px var(--accent); } }
   .cmd { margin-top: 10px; display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 16px; border-radius: 16px; background: var(--card); box-shadow: 0 4px 0 var(--card-lip); }
   .cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; color: var(--ink); }
   .cmd button {
     flex: none; border: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 800; color: var(--ink);
-    height: 32px; padding: 0 14px; border-radius: 16px; background: var(--pink); box-shadow: 0 3px 0 var(--pink-lip);
+    height: 32px; padding: 0 14px; border-radius: 16px; background: var(--accent); box-shadow: 0 3px 0 var(--accent-lip);
     transition: transform 180ms var(--bouncy), box-shadow 180ms var(--bouncy);
   }
-  .cmd button:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--pink-lip); }
-  @media (max-width: 600px) { .oneline { padding-left: 0; } }
+  .cmd button:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--accent-lip); }
+  .was { max-width: 33em; margin: 28px auto 0; padding-left: 50px; color: var(--ink-2); font-size: 14px; font-weight: 600; }
 
   footer { text-align: center; color: var(--ink-2); font-size: 14px; font-weight: 600; padding: 72px 24px 48px; }
-  footer a { font-weight: 800; text-decoration-color: var(--pink); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  footer a { font-weight: 800; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 
   /* ---------- the one page-load moment ---------- */
   .pop { animation: pop 700ms var(--bouncy) both; animation-delay: var(--d, 0ms); }
@@ -134,19 +209,24 @@
   .rise { animation: rise 600ms var(--smooth) both; animation-delay: var(--d, 0ms); }
   @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
 
+  @media (max-width: 720px) {
+    .tool-grid { grid-template-columns: 1fr; }
+  }
   @media (max-width: 600px) {
-    main { padding-top: 56px; }
+    main { padding: 56px 16px 40px; }
     h1 { font-size: 44px; }
     .lede { font-size: 17px; }
     .disk-body { padding: 26px 14px 22px; }
     .item img, .item svg.folder { width: 72px; height: 72px; }
     .item { font-size: 12px; }
     .twirl path { stroke-width: 11; }
+    .oneline, .was { padding-left: 0; }
   }
   @media (prefers-reduced-motion: reduce) {
     .pop, .rise { animation: none; }
     .twirl .heads { opacity: 1; animation: none !important; }
-    .download, .folder-drop { transition: none; }
+    .download, .folder-drop, .away-demo *, .wall { transition: none; }
+    .away-demo .blob { animation: none; }
   }
 </style>
 </head>
@@ -154,8 +234,8 @@
 <main>
   <section class="hero">
     <img class="icon pop" src="icon.png" alt="" width="128" height="128">
-    <h1 class="rise" style="--d:120ms">Scrawl</h1>
-    <p class="lede rise" style="--d:200ms">Hold a key, pick a pencil from the wheel, and draw on anything on your screen. Let go of the key and your Mac works like normal.</p>
+    <h1 class="rise" style="--d:120ms">Pane</h1>
+    <p class="lede rise" style="--d:200ms">Small tools that sit on top of your Mac. Draw on anything with Scrawl, and blur your screen with Away when you step out.</p>
     <a class="download pop" style="--d:320ms" id="download" href="https://github.com/">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 20h14"/></svg>
       Download for Mac
@@ -164,19 +244,80 @@
     <p class="alt rise" style="--d:420ms"><a href="#one-command">Or install with one Terminal command</a>, with no security prompt.</p>
   </section>
 
+  <section class="tools" aria-labelledby="tools-title">
+    <h2 id="tools-title">Two tools, one little app</h2>
+    <p class="sub">Each one waits for its keys, then gets out of the way.</p>
+
+    <div class="tool-grid">
+      <article class="tool rise" style="--d:80ms">
+        <div class="screen scrawl-demo" id="scrawlDemo" aria-hidden="true">
+          <div class="wall">
+            <div class="win w1"><i style="left:8%;top:30%;width:60%"></i><i style="left:8%;top:44%;width:76%"></i><i style="left:8%;top:58%;width:44%"></i></div>
+            <div class="win w2"><i style="left:8%;top:32%;width:70%"></i><i style="left:8%;top:47%;width:52%"></i><i style="left:8%;top:62%;width:64%"></i></div>
+            <div class="win w3"></div>
+          </div>
+          <svg class="scrawl-ink" viewBox="0 0 400 250" preserveAspectRatio="none">
+            <path class="lip" d="M60 190 C110 190 160 168 172 120 C182 82 150 56 122 70 C92 86 98 140 140 168 C180 194 236 192 266 158 C282 140 296 112 318 96" transform="translate(0 5)"/>
+            <path class="ink" d="M60 190 C110 190 160 168 172 120 C182 82 150 56 122 70 C92 86 98 140 140 168 C180 194 236 192 266 158 C282 140 296 112 318 96"/>
+          </svg>
+          <span class="chip" id="chip"><svg viewBox="0 0 24 24" fill="none" stroke="#2B2733" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1.2-4.4L15.6 5.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.4 18.8z"/><path d="M13.5 7.3l3.2 3.2"/></svg></span>
+        </div>
+        <div class="tag">
+          <svg viewBox="200 270 640 470" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="78"><path d="M262 640 C372 640 480 590 506 470 C526 372 456 306 392 334 C318 366 326 492 424 566 C508 628 628 628 690 548 C716 514 734 474 746 436" stroke="#8E76DC" transform="translate(0 30)"/><path d="M262 640 C372 640 480 590 506 470 C526 372 456 306 392 334 C318 366 326 492 424 566 C508 628 628 628 690 548 C716 514 734 474 746 436" stroke="#B9A5F4"/></g><circle cx="752" cy="444" r="74" fill="#16131C"/><circle cx="752" cy="414" r="74" fill="#2B2733"/></svg>
+          Scrawl
+        </div>
+        <p>Hold a key and a wheel opens at your cursor. Pick the pencil, draw on anything, then let go and your Mac works like normal.</p>
+        <div class="keys"><span><kbd>⌥</kbd> wheel</span><span><kbd>⌃</kbd> draw</span><span><kbd>⌘</kbd><kbd>Z</kbd> undo</span></div>
+      </article>
+
+      <article class="tool rise" style="--d:160ms">
+        <div class="screen away-demo" id="awayDemo">
+          <div class="wall" aria-hidden="true">
+            <div class="win w1"><i style="left:8%;top:30%;width:60%"></i><i style="left:8%;top:44%;width:76%"></i><i style="left:8%;top:58%;width:44%"></i></div>
+            <div class="win w2"><i style="left:8%;top:32%;width:70%"></i><i style="left:8%;top:47%;width:52%"></i><i style="left:8%;top:62%;width:64%"></i></div>
+            <div class="win w3"></div>
+          </div>
+          <div class="tint" aria-hidden="true"></div>
+          <div class="blob b1" aria-hidden="true"></div><div class="blob b2" aria-hidden="true"></div><div class="blob b3" aria-hidden="true"></div>
+          <div class="note" aria-hidden="true">
+            <svg viewBox="0 0 60 44"><g transform="translate(0 3)" fill="none" stroke="#8E76DC" stroke-width="3.4" stroke-linecap="round"><path d="M21 12 q-3 -3 0 -6 t0 -6"/><path d="M31 12 q-3 -3 0 -6 t0 -6"/></g><g fill="none" stroke="#B9A5F4" stroke-width="3.4" stroke-linecap="round"><path d="M21 12 q-3 -3 0 -6 t0 -6"/><path d="M31 12 q-3 -3 0 -6 t0 -6"/></g><g transform="translate(0 2)" fill="#16131C"><rect x="7" y="36" width="38" height="5" rx="2.5"/></g><rect x="7" y="36" width="38" height="5" rx="2.5" fill="#2B2733"/><g transform="translate(0 3)" fill="#E39C60"><path d="M12 17 H40 V27 Q40 37 30 37 H22 Q12 37 12 27 Z"/><path d="M39 19.5 h3.5 a5.5 5.5 0 0 1 0 11 h-4 v-4 h4 a1.5 1.5 0 0 0 0 -3 h-3.5 z"/></g><g fill="#FFC593"><path d="M12 17 H40 V27 Q40 37 30 37 H22 Q12 37 12 27 Z"/><path d="M39 19.5 h3.5 a5.5 5.5 0 0 1 0 11 h-4 v-4 h4 a1.5 1.5 0 0 0 0 -3 h-3.5 z"/></g></svg>
+            <b>I’m away from my computer right now.</b>
+            <small id="demoSince">Away since 3:42 PM</small>
+          </div>
+          <button class="try" id="tryAway" type="button" aria-pressed="false">Step away</button>
+        </div>
+        <div class="tag">
+          <svg viewBox="0 0 60 44" aria-hidden="true"><g fill="none" stroke="#B9A5F4" stroke-width="3.4" stroke-linecap="round"><path d="M21 12 q-3 -3 0 -6 t0 -6"/><path d="M31 12 q-3 -3 0 -6 t0 -6"/></g><rect x="7" y="38" width="38" height="5" rx="2.5" fill="#16131C"/><rect x="7" y="36" width="38" height="5" rx="2.5" fill="#2B2733"/><g transform="translate(0 3)" fill="#E39C60"><path d="M12 17 H40 V27 Q40 37 30 37 H22 Q12 37 12 27 Z"/><path d="M39 19.5 h3.5 a5.5 5.5 0 0 1 0 11 h-4 v-4 h4 a1.5 1.5 0 0 0 0 -3 h-3.5 z"/></g><g fill="#FFC593"><path d="M12 17 H40 V27 Q40 37 30 37 H22 Q12 37 12 27 Z"/><path d="M39 19.5 h3.5 a5.5 5.5 0 0 1 0 11 h-4 v-4 h4 a1.5 1.5 0 0 0 0 -3 h-3.5 z"/></g></svg>
+          Away
+        </div>
+        <p>Press one shortcut and every screen blurs behind soft, drifting color. Your pointer hides and your note tells anyone walking by you’ll be right back.</p>
+        <div class="keys"><span><kbd>⌃</kbd><kbd>⌘</kbd><kbd>A</kbd> step away, and again to come back</span></div>
+      </article>
+    </div>
+
+    <p class="switch-note">
+      <span class="fake-switch" aria-hidden="true">
+        <svg class="g" viewBox="0 0 60 44"><g fill="none" stroke="#B9A5F4" stroke-width="3.4" stroke-linecap="round"><path d="M21 12 q-3 -3 0 -6 t0 -6"/><path d="M31 12 q-3 -3 0 -6 t0 -6"/></g><rect x="7" y="36" width="38" height="5" rx="2.5" fill="#2B2733"/><g fill="#FFC593"><path d="M12 17 H40 V27 Q40 37 30 37 H22 Q12 37 12 27 Z"/><path d="M39 19.5 h3.5 a5.5 5.5 0 0 1 0 11 h-4 v-4 h4 a1.5 1.5 0 0 0 0 -3 h-3.5 z"/></g></svg>
+        Away
+        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.8l3 3 3-3" fill="none" stroke="#6A6272" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      Switch tools from the button in the corner of Pane’s window. Choose your own keys and message there too.
+    </p>
+  </section>
+
   <section class="install" aria-labelledby="install-title">
     <h2 id="install-title">Put it in Applications</h2>
     <p class="sub">The download opens a window like this one.</p>
 
     <div class="disk" id="disk">
-      <div class="disk-bar" aria-hidden="true"><i></i><i></i><i></i><span>Scrawl</span></div>
+      <div class="disk-bar" aria-hidden="true"><i></i><i></i><i></i><span>Pane</span></div>
       <div class="disk-body">
         <div class="item">
           <img src="icon.png" alt="" width="112" height="112">
-          Scrawl
+          Pane
         </div>
 
-        <svg class="twirl" id="twirl" viewBox="0 0 320 150" role="img" aria-label="Drag Scrawl to the Applications folder">
+        <svg class="twirl" id="twirl" viewBox="0 0 320 150" role="img" aria-label="Drag Pane to the Applications folder">
           <path class="lip" d="M14 98 C62 98 120 90 142 62 C160 38 150 14 130 18 C106 23 108 64 142 86 C184 112 252 104 294 70" transform="translate(0 6)"/>
           <path class="ink" d="M14 98 C62 98 120 90 142 62 C160 38 150 14 130 18 C106 23 108 64 142 86 C184 112 252 104 294 70"/>
           <g class="heads">
@@ -188,10 +329,10 @@
         <div class="item">
           <svg class="folder" viewBox="0 0 120 112" aria-hidden="true">
             <g class="folder-drop">
-              <path d="M10 30 Q10 20 20 20 H46 Q52 20 55 25 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#7F9BD1" transform="translate(0 6)"/>
-              <path d="M10 30 Q10 20 20 20 H46 Q52 20 55 25 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#8DA9DE"/>
-              <path d="M10 46 Q10 38 18 38 H102 Q110 38 110 46 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#A9C1EC"/>
-              <g fill="none" stroke="#F8FAFC" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.92">
+              <path d="M10 30 Q10 20 20 20 H46 Q52 20 55 25 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#E39C60" transform="translate(0 6)"/>
+              <path d="M10 30 Q10 20 20 20 H46 Q52 20 55 25 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#F2B07A"/>
+              <path d="M10 46 Q10 38 18 38 H102 Q110 38 110 46 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#FFC593"/>
+              <g fill="none" stroke="#FBF8F3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
                 <path d="M48 88 L60 54 L72 88"/><path d="M52.5 76 H67.5"/>
               </g>
             </g>
@@ -202,24 +343,25 @@
     </div>
 
     <ol class="steps">
-      <li><span><strong>Drag Scrawl into Applications.</strong> Then you can eject the Scrawl disk.</span></li>
-      <li><span><strong>Open Scrawl, then allow it once.</strong> Scrawl isn’t from the App Store, so the first time macOS says it can’t verify it. Click <em>Done</em>, open System Settings, then Privacy &amp; Security, scroll down and click <em>Open Anyway</em> next to Scrawl. Confirm with your password or Touch ID. After that it opens like any other app.</span></li>
-      <li><span><strong>Turn on Scrawl in Accessibility.</strong> Open System Settings, then Privacy &amp; Security, then Accessibility. Scrawl needs this to notice when you hold <kbd>⌥</kbd>.</span></li>
+      <li><span><strong>Drag Pane into Applications.</strong> Then you can eject the Pane disk.</span></li>
+      <li><span><strong>Open Pane, then allow it once.</strong> Pane isn’t from the App Store, so the first time macOS says it can’t verify it. Click <em>Done</em>, open System Settings, then Privacy &amp; Security, scroll down and click <em>Open Anyway</em> next to Pane. Confirm with your password or Touch ID. After that it opens like any other app.</span></li>
+      <li><span><strong>Turn on Pane in Accessibility.</strong> Open System Settings, then Privacy &amp; Security, then Accessibility. Scrawl needs this to notice when you hold <kbd>⌥</kbd>. Away works without it.</span></li>
     </ol>
 
     <div class="oneline" id="one-command">
       <h3>Or install with one command</h3>
-      <p>Paste this into Terminal. It downloads Scrawl, puts it in Applications and opens it, with no security prompt. Run it again any time to update.</p>
+      <p>Paste this into Terminal. It downloads Pane, puts it in Applications and opens it, with no security prompt. Run it again any time to update.</p>
       <div class="cmd">
         <code id="cmd">curl -fsSL https://hfang1012.github.io/Mac-Overlay-Draw/install.sh | sh</code>
         <button type="button" id="copy">Copy</button>
       </div>
     </div>
+    <p class="was">Had Scrawl before? Pane is its new home. Your drawings and settings come along, and the installer replaces the old app.</p>
   </section>
 </main>
 
 <footer>
-  Scrawl is free. <a id="source" href="https://github.com/">See the code on GitHub</a>.
+  Pane is free. <a id="source" href="https://github.com/">See the code on GitHub</a>.
 </footer>
 
 <script>
@@ -239,9 +381,10 @@
   const isMac = /Macintosh|Mac OS X/.test(navigator.userAgent);
   const fine = document.getElementById('fine');
   const button = document.getElementById('download');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // Scrawl is Mac-only: say so plainly anywhere else.
-  if (!isMac) fine.textContent = 'Scrawl runs on macOS. Open this page on your Mac to download it.';
+  // Pane is Mac-only: say so plainly anywhere else.
+  if (!isMac) fine.textContent = 'Pane runs on macOS. Open this page on your Mac to download it.';
 
   // On GitHub Pages (owner.github.io/repo/), the button downloads the .dmg from this repo's latest release.
   (function () {
@@ -255,8 +398,8 @@
     const dir = location.pathname.replace(/[^/]*$/, '');
     document.getElementById('cmd').textContent = `curl -fsSL ${location.origin}${dir}install.sh | sh`;
     // The direct file link works from the first click: GitHub sends it as a download (an attachment),
-    // so the browser saves Scrawl.dmg instead of opening a page.
-    button.href = `${base}/releases/latest/download/Scrawl.dmg`;
+    // so the browser saves Pane.dmg instead of opening a page.
+    button.href = `${base}/releases/latest/download/Pane.dmg`;
 
     // Then ask GitHub about the release, only to show the version, follow a renamed .dmg,
     // or explain when there's nothing to download yet. If this fails, the direct link above still works.
@@ -281,6 +424,13 @@
       .catch(() => {});
   })();
 
+  // Run once when an element is mostly on screen.
+  function whenSeen(el, fn, threshold = 0.55) {
+    new IntersectionObserver((entries, obs) => {
+      if (entries.some((e) => e.isIntersecting)) { obs.disconnect(); fn(); }
+    }, { threshold }).observe(el);
+  }
+
   // The twirl: size the dash to the path, set the arrowhead along the final tangent, draw on when seen.
   (function () {
     const svg = document.getElementById('twirl');
@@ -294,21 +444,61 @@
     document.getElementById('headLip').setAttribute('d', head);
     document.getElementById('headLip').setAttribute('transform', 'translate(0 6)');
 
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) return;
     for (const p of [ink, lip]) { p.style.strokeDasharray = len; p.style.strokeDashoffset = len; }
     const disk = document.getElementById('disk');
-    const draw = () => {
+    whenSeen(disk, () => setTimeout(() => {
       svg.classList.add('drawn');
       for (const p of [ink, lip]) {
         p.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
           { duration: 1100, easing: 'cubic-bezier(.55,.05,.3,1)', fill: 'forwards' });
       }
       setTimeout(() => disk.classList.add('landed'), 1150);
+    }, 200));
+  })();
+
+  // Scrawl's demo: the loop draws itself, with the pencil chip riding the tip of the line.
+  (function () {
+    const demo = document.getElementById('scrawlDemo');
+    const svg = demo.querySelector('.scrawl-ink');
+    const ink = svg.querySelector('.ink'), lip = svg.querySelector('.lip');
+    const chip = document.getElementById('chip');
+    const len = ink.getTotalLength();
+    if (reduce) return;
+    const draw = () => {
+      for (const p of [ink, lip]) { p.style.strokeDasharray = len; p.style.strokeDashoffset = len; }
+      demo.classList.add('drawing');
+      const t0 = performance.now(), dur = 1800;
+      const frame = (now) => {
+        const k = Math.min(1, (now - t0) / dur);
+        const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+        const off = len * (1 - e);
+        ink.style.strokeDashoffset = off; lip.style.strokeDashoffset = off;
+        const p = ink.getPointAtLength(len - off);
+        const box = svg.getBoundingClientRect();
+        chip.style.transform = `translate(${(p.x / 400) * box.width + 8}px, ${(p.y / 250) * box.height + 10}px)`;
+        if (k < 1) requestAnimationFrame(frame);
+        else setTimeout(() => demo.classList.remove('drawing'), 500);
+      };
+      requestAnimationFrame(frame);
     };
-    new IntersectionObserver((entries, obs) => {
-      if (entries.some((e) => e.isIntersecting)) { obs.disconnect(); setTimeout(draw, 200); }
-    }, { threshold: 0.55 }).observe(disk);
+    for (const p of [ink, lip]) { p.style.strokeDasharray = len; p.style.strokeDashoffset = len; }
+    whenSeen(demo, () => setTimeout(draw, 250));
+    demo.addEventListener('click', draw);
+  })();
+
+  // Away's demo: step away once when it comes into view, then the button toggles it.
+  (function () {
+    const demo = document.getElementById('awayDemo');
+    const btn = document.getElementById('tryAway');
+    document.getElementById('demoSince').textContent = `Away since ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+    const set = (on) => {
+      demo.classList.toggle('away', on);
+      btn.textContent = on ? 'Come back' : 'Step away';
+      btn.setAttribute('aria-pressed', on);
+    };
+    btn.addEventListener('click', () => set(!demo.classList.contains('away')));
+    whenSeen(demo, () => setTimeout(() => set(true), 700));
   })();
 </script>
 </body>

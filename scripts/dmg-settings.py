@@ -1,4 +1,4 @@
-# dmgbuild settings: the window that opens when someone double-clicks Scrawl.dmg.
+# dmgbuild settings: the window that opens when someone double-clicks Pane.dmg.
 # Paths come in from scripts/dmg.sh through -D app=… -D background=… -D icon=…
 import os
 
@@ -21,7 +21,7 @@ show_pathbar = False
 show_sidebar = False
 show_icon_preview = False
 
-# Icons sit on the background's floor, either side of the pink arrow.
+# Icons sit on the background's floor, either side of the lilac arrow.
 icon_size = 128
 text_size = 13
 arrange_by = None

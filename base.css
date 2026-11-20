@@ -1,18 +1,19 @@
 /* Shared by the settings window and the drawing overlay. */
 :root {
-  --paper: #E3E8EF;      /* window background: cool sketch paper */
-  --paper-deep: #D3DAE4;
-  --card: #F8FAFC;       /* raised surfaces */
-  --card-lip: #DCE2EA;
-  --well: #EBEFF4;       /* sunken surfaces */
-  --edge: #C6CFDB;
-  --ink: #262B36;        /* graphite */
-  --ink-2: #646D80;
-  --pink: #F49CB0;       /* eraser pink, the one accent */
-  --pink-lip: #D96F8A;
-  --pink-soft: #FBE3E9;
-  --sky: #A9C1EC;        /* secondary glyph color */
-  --sky-lip: #7F9BD1;
+  --paper: #ECE6DD;      /* window background: warm oat paper */
+  --paper-deep: #DFD7CB;
+  --card: #FBF8F3;       /* raised surfaces */
+  --card-lip: #E4DBCE;
+  --well: #F2EDE5;       /* sunken surfaces */
+  --edge: #D3C9BB;
+  --ink: #2B2733;        /* plum graphite */
+  --ink-2: #6F6777;
+  --accent: #B9A5F4;     /* lilac, the one accent */
+  --accent-lip: #8E76DC;
+  --accent-soft: #E8E0FC;
+  --accent-ink: #6A50C4; /* lilac dark enough for text */
+  --peach: #FFC593;      /* apricot, the secondary glyph color */
+  --peach-lip: #E39C60;
   --font: ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
 
   /* Springs sampled from a damped oscillator (ζ 0.5 and 0.78). */
@@ -28,19 +29,19 @@
 .wheel .edge { fill: var(--edge); transition: fill 140ms ease; }
 .wheel .ico { transform-box: fill-box; transform-origin: center; transition: transform 300ms var(--bouncy); color: var(--ink); }
 .wheel .slice.hot .face { transform: translateY(var(--press)); }
-.wheel .slice.hot .top { fill: var(--pink); }
-.wheel .slice.hot .edge { fill: var(--pink-lip); }
+.wheel .slice.hot .top { fill: var(--accent); }
+.wheel .slice.hot .edge { fill: var(--accent-lip); }
 .wheel .slice.hot .ico { transform: scale(1.18); }
-.wheel .act { fill: var(--pink-lip); transition: fill 140ms ease; }
+.wheel .act { fill: var(--accent-lip); transition: fill 140ms ease; }
 .wheel .slice.hot .act { fill: var(--ink); }
 
-/* The middle is a button too (show/hide): it presses in and turns pink like a slice. */
+/* The middle is a button too (show/hide): it presses in and turns lilac like a slice. */
 .wheel .hub-face { transition: transform 260ms var(--bouncy); }
 .wheel .hub-top { fill: var(--card); transition: fill 140ms ease; }
 .wheel .hub-edge { fill: var(--edge); transition: fill 140ms ease; }
 .wheel .hub.hot .hub-face { transform: translateY(var(--press)); }
-.wheel .hub.hot .hub-top { fill: var(--pink); }
-.wheel .hub.hot .hub-edge { fill: var(--pink-lip); }
+.wheel .hub.hot .hub-top { fill: var(--accent); }
+.wheel .hub.hot .hub-edge { fill: var(--accent-lip); }
 .wheel .hub-ico {
   transform-box: fill-box; transform-origin: center; color: var(--ink);
   opacity: 0; transform: scale(0.3) rotate(-25deg);

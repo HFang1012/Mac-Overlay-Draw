@@ -1,8 +1,8 @@
-// Builds build/Scrawl.app for this Mac and signs it locally so macOS will open it.
+// Builds build/Pane.app for this Mac and signs it locally so macOS will open it.
 //
 // The version comes from your newest git tag (v1.2.3 → 1.2.3), so tagging a release is all it takes:
 //   git tag v1.2.3 && npm run release
-// Fallbacks: SCRAWL_VERSION=1.2.3 npm run package, then package.json's "version".
+// Fallbacks: PANE_VERSION=1.2.3 npm run package, then package.json's "version".
 const { packager } = require('@electron/packager');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
@@ -21,7 +21,8 @@ function git(...args) {
 }
 
 function pickVersion() {
-  if (process.env.SCRAWL_VERSION) return { version: process.env.SCRAWL_VERSION, from: 'SCRAWL_VERSION' };
+  const env = process.env.PANE_VERSION || process.env.SCRAWL_VERSION;
+  if (env) return { version: env, from: 'PANE_VERSION' };
   const tag = git('describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*');
   if (tag) {
     const ahead = Number(git('rev-list', '--count', `${tag}..HEAD`) || 0);
@@ -37,25 +38,25 @@ function pickVersion() {
     console.error(`"${version}" isn't a version like 1.2.3. Tag releases as v1.2.3.`);
     process.exit(1);
   }
-  console.log(`Building Scrawl ${version} (from ${from})`);
+  console.log(`Building Pane ${version} (from ${from})`);
 
   // Only clear what this script makes; build/ also holds the .dmg tooling.
-  fs.rmSync(path.join(build, 'Scrawl.app'), { recursive: true, force: true });
+  fs.rmSync(path.join(build, 'Pane.app'), { recursive: true, force: true });
   fs.rmSync(path.join(build, '.tmp'), { recursive: true, force: true });
 
   const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
   const [appDir] = await packager({
     dir: root,
-    name: 'Scrawl',
+    name: 'Pane',
     platform: 'darwin',
     arch,
     out: path.join(build, '.tmp'),
     overwrite: true,
     icon: path.join(root, 'assets', 'icon.icns'),
-    appBundleId: 'com.scrawl.app',
+    appBundleId: 'com.pane.app',
     appVersion: version, // Finder's "Version" and the About window (CFBundleShortVersionString)
     buildVersion: version, // CFBundleVersion
-    ignore: [/^\/(build|assets|scripts|docs)(\/|$)/, /\/prebuilds\/(linux|win32)\//],
+    ignore: [/^\/(build|assets|scripts|docs|\.claude|\.github)(\/|$)/, /\/prebuilds\/(linux|win32)\//],
     // The running app reports its version from its own package.json, so stamp the same number there.
     afterCopy: [({ buildPath }) => {
       const file = path.join(buildPath, 'package.json');
@@ -65,10 +66,10 @@ function pickVersion() {
     }],
   });
 
-  fs.renameSync(path.join(appDir, 'Scrawl.app'), path.join(build, 'Scrawl.app'));
+  fs.renameSync(path.join(appDir, 'Pane.app'), path.join(build, 'Pane.app'));
   fs.rmSync(path.join(build, '.tmp'), { recursive: true, force: true });
-  execFileSync('codesign', ['--force', '--deep', '--sign', '-', path.join(build, 'Scrawl.app')], { stdio: 'inherit' });
-  console.log(`Built build/Scrawl.app (version ${version})`);
+  execFileSync('codesign', ['--force', '--deep', '--sign', '-', path.join(build, 'Pane.app')], { stdio: 'inherit' });
+  console.log(`Built build/Pane.app (version ${version})`);
 })().catch((err) => {
   console.error(err);
   process.exit(1);

@@ -194,11 +194,11 @@ function chipArt(tool) {
   const g = can.getContext('2d');
   g.scale(scale, scale);
   const rr = (x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
-  rr(0, 2, chip, chip, 6); g.fillStyle = tool === 'pencil' ? '#D96F8A' : '#C6CFDB'; g.fill();
-  rr(0, 0, chip, chip, 6); g.fillStyle = tool === 'pencil' ? '#F49CB0' : '#F8FAFC'; g.fill();
+  rr(0, 2, chip, chip, 6); g.fillStyle = tool === 'pencil' ? '#8E76DC' : '#D3C9BB'; g.fill();
+  rr(0, 0, chip, chip, 6); g.fillStyle = tool === 'pencil' ? '#B9A5F4' : '#FBF8F3'; g.fill();
   g.save();
   g.translate(3, 3); g.scale(12 / 24, 12 / 24);
-  g.lineWidth = 2.6; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#262B36';
+  g.lineWidth = 2.6; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#2B2733';
   for (const p of Wheel.CURSOR_PATHS[tool]) g.stroke(new Path2D(p));
   g.restore();
   const art = { src: can.toDataURL('image/png'), W, H };

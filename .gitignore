@@ -2,7 +2,7 @@
 node_modules/
 
 # Built app and disk image: made with `npm run release`.
-# Upload build/Scrawl.dmg to a GitHub release instead of committing it (it's over GitHub's 100 MB file limit).
+# Upload build/Pane.dmg to a GitHub release instead of committing it (it's over GitHub's 100 MB file limit).
 build/
 *.dmg
 

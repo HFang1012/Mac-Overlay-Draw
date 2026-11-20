@@ -1,4 +1,4 @@
-# Builds Scrawl and publishes a GitHub release whenever a version tag (v1.2.3) is pushed.
+# Builds Pane and publishes a GitHub release whenever a version tag (v1.2.3) is pushed.
 # The website's download button always points at the newest release, so it updates by itself.
 #
 # Release a new version with:  npm run ship        (1.0.1 → 1.0.2)
@@ -15,7 +15,7 @@ on:
         required: true
 
 permissions:
-  contents: write # to create the release and upload Scrawl.dmg
+  contents: write # to create the release and upload Pane.dmg
 
 concurrency:
   group: release-${{ github.event.inputs.tag || github.ref_name }}
@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   release:
-    runs-on: macos-15 # Apple silicon, matching the Macs Scrawl is built for
+    runs-on: macos-15 # Apple silicon, matching the Macs Pane is built for
     env:
       TAG: ${{ github.event.inputs.tag || github.ref_name }}
     steps:
@@ -40,12 +40,12 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Build Scrawl.app and Scrawl.dmg
+      - name: Build Pane.app and Pane.dmg
         run: npm run release
 
       - name: Check the version matches the tag
         run: |
-          built=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" build/Scrawl.app/Contents/Info.plist)
+          built=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" build/Pane.app/Contents/Info.plist)
           echo "Built version $built for tag $TAG"
           [ "v$built" = "$TAG" ] || { echo "::error::Built $built but the tag is $TAG"; exit 1; }
 
@@ -55,7 +55,7 @@ jobs:
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
             # The release already exists (made by hand, or a re-run): replace its download.
-            gh release upload "$TAG" build/Scrawl.dmg --clobber
+            gh release upload "$TAG" build/Pane.dmg --clobber
           else
-            gh release create "$TAG" build/Scrawl.dmg --title "Scrawl ${TAG#v}" --generate-notes --latest
+            gh release create "$TAG" build/Pane.dmg --title "Pane ${TAG#v}" --generate-notes --latest
           fi

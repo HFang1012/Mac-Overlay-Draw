@@ -1,8 +1,10 @@
-const { app, BrowserWindow, Menu, ipcMain, screen, systemPreferences, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, screen, systemPreferences, shell, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { uIOhook, UiohookKey } = require('uiohook-napi');
 const Wheel = require('./wheel.js'); // same geometry the wheel is drawn with, for hit-testing
+const Tools = require('./tools.js'); // Pane's tools and Away's moods
+const { execFile } = require('child_process');
 
 // ---------- persistence ----------
 // Ring tools. Undo and redo are half-size and start out side by side, so together they fill one slot.
@@ -19,10 +21,30 @@ const DEFAULTS = {
   wheelSize: 76,
   openAtLogin: false,
   enabled: true, // the on/off button: off means Scrawl ignores its keys and hides drawings (kept, not deleted)
+  page: 'scrawl', // which tool the settings window shows
+  away: {
+    // A shortcut, not a held key: it toggles the Away screen. ⌃⌘A stays clear of Scrawl's ⌥ and of most apps.
+    keys: { accelerator: 'Control+Command+A', symbols: ['⌃', '⌘', 'A'], name: 'Control Command A' },
+    message: Tools.DEFAULT_MESSAGE,
+    mood: 'dusk',
+    showTime: true,
+    hidePointer: true,
+    enabled: true,
+  },
 };
 const WHEEL_SIZES = [60, 76, 96]; // small, medium, large (outer radius, px)
 
 const file = (name) => path.join(app.getPath('userData'), name);
+
+// Scrawl used to be the whole app. Its settings and drawings move into Pane the first time Pane opens.
+function migrateFromScrawl() {
+  const old = path.join(app.getPath('appData'), 'Scrawl');
+  if (fs.existsSync(file('settings.json')) || !fs.existsSync(path.join(old, 'settings.json'))) return;
+  fs.mkdirSync(app.getPath('userData'), { recursive: true });
+  for (const name of ['settings.json', 'drawings.json']) {
+    try { fs.copyFileSync(path.join(old, name), file(name)); } catch {}
+  }
+}
 function readJSON(name, fallback) {
   try { return JSON.parse(fs.readFileSync(file(name), 'utf8')); } catch { return fallback; }
 }
@@ -357,6 +379,7 @@ uIOhook.on('keydown', (e) => {
     settingsWin?.webContents.send('bind:done', { settings, which, error });
     return;
   }
+  if (away || awayBinding) return; // the Away screen is up (or its keys are being chosen): Scrawl sits still
   if (!settings.enabled) return; // turned off: every key goes untouched to your apps
   // ⌘Z / ⌘⇧Z undo and redo, but only with a pencil or eraser in hand (Scrawl can't stop the app
   // underneath from getting the keys too, and with a tool in hand you're drawing, not editing it).
@@ -381,11 +404,155 @@ uIOhook.on('keydown', (e) => {
   if (e.keycode === UiohookKey.Escape) dropTool();
 });
 uIOhook.on('keyup', (e) => {
-  if (!settings.enabled) return;
+  if (away || awayBinding || !settings.enabled) return;
   if (isDrawKey(e.keycode)) { penUp(); return; }
   if (!isHotkey(e.keycode)) return;
   holding = false;
   closeMenu(true);
+});
+
+
+// ---------- Away: blur every screen, hide the pointer, leave a note ----------
+// One window per screen, above everything (Scrawl's layers included). macOS blurs what's behind it
+// (vibrancy), so Away needs no screen-recording access. The page adds the drifting color and the note.
+let away = null; // { since, preview, wins, closing, front }
+let awayBinding = false; // the settings window is listening for new Away keys
+let awayKeyOn = false; // the Away shortcut is registered
+
+function registerAwayKey() {
+  globalShortcut.unregisterAll();
+  awayKeyOn = false;
+  if (!settings.away.enabled || awayBinding) return;
+  try { awayKeyOn = globalShortcut.register(settings.away.keys.accelerator, toggleAway); } catch { awayKeyOn = false; }
+}
+function toggleAway() {
+  if (away) hideAway();
+  else showAway(false);
+}
+
+// Step a window's opacity (vibrancy can't be faded with CSS, so the whole window fades).
+function fadeWindow(w, from, to, ms, done) {
+  const t0 = Date.now();
+  w.setOpacity(from);
+  const id = setInterval(() => {
+    if (w.isDestroyed()) { clearInterval(id); done?.(); return; }
+    const k = Math.min(1, (Date.now() - t0) / ms);
+    const e = to > from ? 1 - (1 - k) ** 3 : k * k; // ease out on the way in, ease in on the way out
+    w.setOpacity(from + (to - from) * e);
+    if (k >= 1) { clearInterval(id); done?.(); }
+  }, 16);
+}
+
+// The pointer can only be hidden by the app in front, so Away comes to the front while it's up.
+// Note which app that was (lsappinfo needs no permission), so it can be put back afterwards.
+function frontApp() {
+  return new Promise((resolve) => {
+    execFile('lsappinfo', ['front'], (err, asn) => {
+      if (err || !asn.trim()) return resolve(null);
+      execFile('lsappinfo', ['info', '-only', 'bundleid', asn.trim()], (err2, out) => {
+        const id = !err2 && /"CFBundleIdentifier"="([^"]+)"/.exec(out)?.[1];
+        resolve(id || null);
+      });
+    });
+  });
+}
+
+function showAway(preview = false) {
+  if (away) return;
+  if (menu.open) closeMenu(false);
+  penUp();
+  if (activeTool) { activeTool = null; broadcast(); }
+  binding = false;
+  const cursor = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const a = { since: Date.now(), preview, wins: [], closing: false, front: null };
+  away = a;
+  if (!preview) frontApp().then((id) => { if (id && id !== 'com.pane.app' && !id.startsWith('com.github.Electron')) a.front = id; });
+
+  for (const d of screen.getAllDisplays()) {
+    const w = new BrowserWindow({
+      ...d.bounds,
+      frame: false,
+      transparent: true,
+      backgroundColor: '#00000000',
+      vibrancy: 'fullscreen-ui',
+      visualEffectState: 'active', // stay blurred even though nothing here is clicked
+      hasShadow: false,
+      resizable: false,
+      movable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      skipTaskbar: true,
+      alwaysOnTop: true,
+      enableLargerThanScreen: true,
+      type: 'panel',
+      show: false,
+      webPreferences: { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false },
+    });
+    const primary = d.id === cursor.id;
+    w.setAlwaysOnTop(true, OVERLAY_LEVEL, 2); // above Scrawl's layers, so drawings blur too
+    // The full-screen trick already ran once for Scrawl's layers; never again (it can jump Spaces).
+    w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
+    w.loadFile(path.join(__dirname, 'away.html'), { query: { primary: primary ? '1' : '0' } });
+    w.once('ready-to-show', () => {
+      if (away !== a || a.closing) return;
+      w.setBounds(d.bounds);
+      w.setOpacity(0);
+      w.show();
+      if (primary) { w.focus(); app.focus({ steal: true }); }
+      fadeWindow(w, 0, 1, 360);
+    });
+    a.wins.push(w);
+  }
+  buildMenu();
+}
+
+function hideAway() {
+  const a = away;
+  if (!a || a.closing) return;
+  a.closing = true;
+  for (const w of a.wins) {
+    if (w.isDestroyed()) continue;
+    w.webContents.send('away:leave');
+    fadeWindow(w, w.getOpacity(), 0, 260, () => { if (!w.isDestroyed()) w.destroy(); });
+  }
+  setTimeout(() => {
+    if (away === a) away = null;
+    buildMenu();
+    // Hand the keyboard back: to the settings window after a preview, otherwise to the app you were in.
+    if (a.preview) { settingsWin?.show(); settingsWin?.focus(); }
+    else if (a.front) execFile('osascript', ['-e', `tell application id "${a.front.replace(/"/g, '')}" to activate`], () => {});
+  }, 280);
+}
+
+ipcMain.handle('away:init', () => ({
+  ...settings.away,
+  mood: Tools.mood(settings.away.mood),
+  since: away?.since ?? Date.now(),
+  preview: !!away?.preview,
+}));
+ipcMain.on('away:show', () => showAway(true));
+// The page asks to close only for a preview: the real thing ends with the shortcut.
+ipcMain.on('away:dismiss', () => { if (away?.preview) hideAway(); });
+ipcMain.on('away:bind', (_e, on) => {
+  awayBinding = !!on;
+  if (on) { binding = false; if (menu.open) closeMenu(false); }
+  registerAwayKey(); // off while listening, so the current keys reach the settings window too
+});
+ipcMain.handle('away:keys', (_e, keys) => {
+  awayBinding = false;
+  const before = settings.away.keys;
+  settings = { ...settings, away: { ...settings.away, keys } };
+  registerAwayKey();
+  let error = null;
+  if (settings.away.enabled && !awayKeyOn) {
+    error = `Another app is already using ${keys.symbols.join('')}. Pick different keys.`;
+    settings = { ...settings, away: { ...settings.away, keys: before } };
+    registerAwayKey();
+  }
+  writeJSON('settings.json', settings);
+  buildMenu();
+  return { settings, error };
 });
 
 // ---------- settings window ----------
@@ -398,7 +565,7 @@ function createSettings() {
     maximizable: false,
     fullscreenable: false,
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#E3E8EF',
+    backgroundColor: '#ECE6DD',
     show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
@@ -421,6 +588,7 @@ ipcMain.handle('settings:set', (_e, patch) => {
   settings = { ...settings, ...patch };
   writeJSON('settings.json', settings);
   if ('openAtLogin' in patch) app.setLoginItemSettings({ openAtLogin: settings.openAtLogin });
+  if ('away' in patch) { registerAwayKey(); buildMenu(); }
   broadcast();
   return settings;
 });
@@ -450,11 +618,11 @@ ipcMain.handle('bind:start', (_e, which) => {
   return true;
 });
 // The settings page measures itself, and the fixed-width window hugs that height.
-ipcMain.on('window:fit', (_e, h) => {
-  if (settingsWin && h > 300 && h < 1400) settingsWin.setContentSize(900, Math.ceil(h));
+ipcMain.on('window:fit', (_e, h, animate) => {
+  if (settingsWin && h > 300 && h < 1400) settingsWin.setContentSize(900, Math.ceil(h), !!animate && settingsWin.isVisible());
 });
 ipcMain.on('bind:cancel', () => { binding = false; });
-ipcMain.handle('perm:check', () => ({ trusted: trusted(), listening: hookOn }));
+ipcMain.handle('perm:check', () => ({ trusted: trusted(), listening: hookOn, awayKey: awayKeyOn }));
 ipcMain.on('perm:open', () => {
   systemPreferences.isTrustedAccessibilityClient(true);
   shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
@@ -472,7 +640,10 @@ ipcMain.on('tool:drop', dropTool);
 
 // ---------- lifecycle ----------
 app.whenReady().then(() => {
+  migrateFromScrawl();
   settings = { ...DEFAULTS, ...readJSON('settings.json', {}) };
+  settings.away = { ...DEFAULTS.away, ...settings.away };
+  if (!Tools.TOOLS.some((t) => t.id === settings.page)) settings.page = DEFAULTS.page;
   if (!WHEEL_SIZES.includes(settings.wheelSize)) settings.wheelSize = DEFAULTS.wheelSize;
   // Keep the saved order, but make sure every built-in tool is present exactly once.
   const known = settings.tools.filter((t) => TOOL_IDS.includes(t.id));
@@ -485,6 +656,7 @@ app.whenReady().then(() => {
   for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) {
     screen.on(ev, refreshOverlays);
   }
+  registerAwayKey();
   buildMenu();
   // Without Accessibility access the hook can't start. Keep trying, so granting access
   // in System Settings takes effect without a restart.
@@ -515,6 +687,9 @@ function buildMenu() {
         { type: 'separator' },
         { label: 'Settings…', accelerator: 'Cmd+,', click: show },
         { label: settings.enabled ? 'Turn Scrawl Off' : 'Turn Scrawl On', click: () => setEnabled(!settings.enabled) },
+        away
+          ? { label: 'Come Back', click: hideAway }
+          : { label: 'Step Away', accelerator: settings.away.keys.accelerator, registerAccelerator: false, click: () => showAway(false) },
         { type: 'separator' },
         { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
         { type: 'separator' },
@@ -528,7 +703,7 @@ function buildMenu() {
         { role: 'minimize' },
         { role: 'close' },
         { type: 'separator' },
-        { label: 'Scrawl', accelerator: 'Cmd+0', click: show },
+        { label: 'Pane', accelerator: 'Cmd+0', click: show },
       ],
     },
   ]));
@@ -540,10 +715,11 @@ app.on('before-quit', () => {
   quitting = true;
   clearTimeout(saveTimer);
   if (drawings) writeJSON('drawings.json', drawings);
+  globalShortcut.unregisterAll();
   uIOhook.stop();
 });
 
 // Test hook: only present when SCRAWL_TEST is set (used by automated checks, never in normal runs).
 if (process.env.SCRAWL_TEST) {
-  global.__scrawlTest = { applyTool, step, setEnabled, overlays, menu, peek: () => ({ activeTool, visible, menuOpen: menu.open, pencilColor: settings.pencilColor, enabled: settings.enabled, drawings, undo: history.undo.length, redo: history.redo.length }) };
+  global.__scrawlTest = { applyTool, step, setEnabled, overlays, menu, showAway, hideAway, awayWins: () => away?.wins ?? [], peek: () => ({ away: !!away, awayKey: awayKeyOn, activeTool, visible, menuOpen: menu.open, pencilColor: settings.pencilColor, enabled: settings.enabled, drawings, undo: history.undo.length, redo: history.redo.length }) };
 }

@@ -1,10 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <!-- Scrawl: one looping scribble on graphite, ending where the pen touches down. -->
-  <rect x="100" y="100" width="824" height="824" rx="185" fill="#262B36"/>
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="78">
-    <path d="M262 640 C372 640 480 590 506 470 C526 372 456 306 392 334 C318 366 326 492 424 566 C508 628 628 628 690 548 C716 514 734 474 746 436" stroke="#B9637A" transform="translate(0 24)"/>
-    <path d="M262 640 C372 640 480 590 506 470 C526 372 456 306 392 334 C318 366 326 492 424 566 C508 628 628 628 690 548 C716 514 734 474 746 436" stroke="#F49CB0"/>
+  <!-- Pane: two chunky panes stacked on plum graphite, little layers that sit on top of your screen.
+       The cream dot is where Scrawl's pen touches down. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#2B2733"/>
+  <g transform="translate(-4 -26)">
+  <g transform="rotate(-9 470 470)">
+    <rect x="236" y="258" width="452" height="384" rx="92" fill="#E39C60" transform="translate(0 26)"/>
+    <rect x="236" y="258" width="452" height="384" rx="92" fill="#FFC593"/>
   </g>
-  <circle cx="752" cy="414" r="70" fill="#B8C1CF" transform="translate(0 24)"/>
-  <circle cx="752" cy="414" r="70" fill="#F8FAFC"/>
+  <g transform="rotate(5 560 580)">
+    <rect x="318" y="382" width="484" height="408" rx="98" fill="#8E76DC" transform="translate(0 28)"/>
+    <rect x="318" y="382" width="484" height="408" rx="98" fill="#B9A5F4"/>
+  </g>
+  <circle cx="694" cy="502" r="62" fill="#DCCDB8" transform="translate(0 20)"/>
+  <circle cx="694" cy="502" r="62" fill="#FBF8F3"/>
+  </g>
 </svg>

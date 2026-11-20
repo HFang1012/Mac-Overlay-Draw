@@ -8,25 +8,25 @@ const path = require('path');
 const W = 640, H = 420;
 const html = `<!doctype html><html><head><meta charset="utf-8"><style>
   html, body { margin: 0; overflow: hidden; } body { width: ${W}px; height: ${H}px; position: relative; }
-  body { background: #F8FAFC; font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif; color: #262B36; -webkit-font-smoothing: antialiased; }
+  body { background: #FBF8F3; font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif; color: #2B2733; -webkit-font-smoothing: antialiased; }
   /* A soft paper floor under the icons, like the card on the website. */
-  .floor { position: absolute; left: 40px; right: 40px; top: 96px; height: 224px; border-radius: 28px; background: #EEF2F6; }
+  .floor { position: absolute; left: 40px; right: 40px; top: 96px; height: 224px; border-radius: 28px; background: #F1EBE2; }
   svg { position: absolute; left: 236px; top: 150px; width: 168px; overflow: visible; }
   path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 13; }
-  .lip { stroke: #D96F8A; } .ink { stroke: #F49CB0; }
-  .head { fill: #F49CB0; stroke: #F49CB0; stroke-width: 4; stroke-linejoin: round; }
-  .head-lip { fill: #D96F8A; stroke: #D96F8A; stroke-width: 4; stroke-linejoin: round; }
+  .lip { stroke: #8E76DC; } .ink { stroke: #B9A5F4; }
+  .head { fill: #B9A5F4; stroke: #B9A5F4; stroke-width: 4; stroke-linejoin: round; }
+  .head-lip { fill: #8E76DC; stroke: #8E76DC; stroke-width: 4; stroke-linejoin: round; }
   h1 { position: absolute; top: 34px; width: 100%; margin: 0; text-align: center; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
-  p { position: absolute; top: 336px; left: 70px; right: 70px; margin: 0; text-align: center; font-size: 14px; line-height: 1.45; font-weight: 600; color: #5E6779; }
+  p { position: absolute; top: 336px; left: 70px; right: 70px; margin: 0; text-align: center; font-size: 14px; line-height: 1.45; font-weight: 600; color: #6F6777; }
 </style></head><body>
-  <h1>Drag Scrawl into Applications</h1>
+  <h1>Drag Pane into Applications</h1>
   <div class="floor"></div>
   <svg viewBox="0 0 320 150">
     <path class="lip" d="M14 98 C62 98 120 90 142 62 C160 38 150 14 130 18 C106 23 108 64 142 86 C184 112 252 104 294 70" transform="translate(0 6)"/>
     <path class="ink" id="ink" d="M14 98 C62 98 120 90 142 62 C160 38 150 14 130 18 C106 23 108 64 142 86 C184 112 252 104 294 70"/>
     <path class="head-lip" id="headLip" transform="translate(0 6)"/><path class="head" id="head"/>
   </svg>
-  <p>Then open Scrawl. If macOS says it can’t verify it, go to System Settings, then Privacy &amp; Security, and click Open Anyway.</p>
+  <p>Then open Pane. If macOS says it can’t verify it, go to System Settings, then Privacy &amp; Security, and click Open Anyway.</p>
   <script>
     const ink = document.getElementById('ink'), len = ink.getTotalLength();
     const end = ink.getPointAtLength(len), back = ink.getPointAtLength(len - 8);
