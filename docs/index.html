@@ -291,10 +291,10 @@
   footer a { font-weight: 800; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 
   /* ---------- toys in the margins ---------- */
-  /* Small pieces of Pane to play with, set beside the section each one belongs to. Extras only: hidden when there's no room. */
+  /* A small piece of each tool to play with, set beside it. Extras only: hidden when there's no room. */
   .toy { display: none; }
   @media (min-width: 1300px) {
-    .hero, .tool, .route { position: relative; }
+    .tool { position: relative; }
     .toy { position: absolute; display: grid; justify-items: center; gap: 12px; width: 180px; }
     .toy.l { right: calc(100% + 56px); }
     .toy.r { left: calc(100% + 56px); }
@@ -318,37 +318,6 @@
   .spinner .tick.bump { animation: tick 360ms var(--bouncy); }
   @keyframes tick { 40% { transform: scale(1.25, 0.8); } }
 
-  /* Paper for the ink pad and the eraser. */
-  .sheet { position: relative; width: 180px; height: 140px; border-radius: 18px; background: var(--card); box-shadow: 0 6px 0 var(--card-lip); overflow: hidden; }
-  .sheet canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-  .toy-pad { rotate: 2.5deg; }
-  .toy-pad canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23FBF8F3' stroke='%232B2733' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M3 21l1.2-4.4L14.6 6.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L7.4 19.8z'/%3E%3C/svg%3E") 3 21, crosshair; }
-  .sheet.wipe canvas { animation: wipe 380ms ease-in forwards; }
-  @keyframes wipe { to { opacity: 0; transform: translateX(14px) rotate(3deg); } }
-  .pad-tools { display: flex; align-items: center; gap: 10px; }
-  .swatch {
-    position: relative; width: 24px; height: 24px; border-radius: 50%; background: var(--c);
-    box-shadow: 0 3px 0 color-mix(in srgb, var(--c) 65%, black); transition: transform 180ms var(--bouncy), box-shadow 180ms var(--bouncy);
-  }
-  .swatch:hover { transform: translateY(-1px); }
-  .swatch[aria-pressed="true"] { transform: translateY(2px); box-shadow: 0 1px 0 color-mix(in srgb, var(--c) 65%, black); }
-  .swatch[aria-pressed="true"]::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--card); }
-  .pad-clear {
-    width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; margin-left: 4px;
-    background: var(--well); box-shadow: 0 3px 0 var(--card-lip); transition: transform 180ms var(--bouncy), box-shadow 180ms var(--bouncy);
-  }
-  .pad-clear:hover { transform: translateY(-1px); }
-  .pad-clear:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--card-lip); }
-
-  .toy-rub { rotate: -3deg; }
-  .toy-rub .sheet { cursor: none; }
-  .rubber {
-    position: absolute; left: 0; top: 0; width: 38px; height: 22px; margin: -11px 0 0 -19px; border-radius: 7px; pointer-events: none;
-    background: linear-gradient(90deg, var(--accent) 0 58%, var(--well) 58%); box-shadow: 0 4px 0 var(--accent-lip);
-    opacity: 0; rotate: -24deg; transition: opacity 150ms ease;
-  }
-  .toy-rub .sheet:hover .rubber { opacity: 1; }
-
   /* Away's mug: steam rises while you point at it; click to take a sip. */
   .mug { width: 132px; border-radius: 20px; }
   .mug svg { display: block; width: 132px; height: auto; overflow: visible; transform-origin: 50% 90%; }
@@ -357,32 +326,6 @@
   .mug .wisps path:nth-child(2) { animation-delay: -0.9s !important; }
   .mug.empty .wisps { opacity: 0; }
   @keyframes steam { 0% { transform: translateY(3px); opacity: 0; } 35% { opacity: 1; } 100% { transform: translateY(-7px); opacity: 0; } }
-
-  /* A tiny screen that blurs while you look away. */
-  .desk { display: grid; justify-items: center; }
-  .monitor { width: 180px; border-radius: 14px; }
-  .stage.mini { aspect-ratio: 16 / 10.5; border-radius: 14px; }
-  .stage.mini .win { border-radius: 6px; }
-  .stage.mini .win::before { height: 9px; }
-  .stage.mini .win i { height: 5px; border-radius: 3px; }
-  .stage.mini.away .bg { filter: blur(4px); }
-  .stage.mini .blob { filter: blur(10px); }
-  .stage.mini .note { width: 74%; padding: 8px 8px 7px; border-radius: 12px; }
-  .stage.mini .note svg { height: 18px; margin-bottom: 3px; }
-  .stage.mini .note b { font-size: 11px; }
-  .stage.mini .note small { margin-top: 4px; padding: 1px 7px; font-size: 9px; }
-  .neck { width: 26px; height: 16px; background: var(--edge); }
-  .foot { width: 84px; height: 9px; border-radius: 5px; background: var(--card); box-shadow: 0 4px 0 var(--card-lip); }
-
-  /* Drag Pane into Applications, like the disk image. */
-  .drop-row { display: flex; align-items: center; gap: 16px; }
-  .drop-icon { touch-action: none; cursor: grab; border-radius: 14px; position: relative; z-index: 2; }
-  .drop-icon.held { cursor: grabbing; }
-  .drop-icon img { display: block; width: 62px; height: 62px; pointer-events: none; filter: drop-shadow(0 6px 10px rgba(43, 39, 51, 0.18)); transition: translate 220ms var(--bouncy); }
-  .drop-icon:hover img { translate: 0 -3px; }
-  .drop-folder { width: 86px; height: 80px; transition: scale 260ms var(--bouncy); }
-  .drop-folder.near { scale: 1.12; }
-  .toy-drop.landed .folder-drop { animation: nudge 520ms var(--bouncy); }
 
   /* Spin's turntable: point at it to play, drag the record to scratch, click for the next one. */
   .deck { width: 180px; height: 150px; touch-action: none; cursor: grab; border-radius: 22px; }
@@ -408,7 +351,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .mug .wisps path { animation: none !important; }
-    .stage.mini .blob { animation: none; }
   }
 
   /* ---------- Spin's demo: the music wheel, records fanning out, the volume arc ---------- */
@@ -558,20 +500,6 @@
     </div>
     <p class="fine rise" style="--d:420ms" id="fine">For Macs with Apple silicon. Free and open source.</p>
 
-    <div class="toy l toy-wheel" style="top: 24px">
-      <button class="spinner" type="button" aria-label="Spin Scrawl’s wheel"></button>
-      <p class="toy-cap" aria-live="polite"><span>Flick it, or click to spin</span></p>
-    </div>
-    <div class="toy r toy-pad" style="top: 210px">
-      <div class="sheet"><canvas aria-label="A little pad to draw on" role="img"></canvas></div>
-      <div class="pad-tools">
-        <button class="swatch" type="button" style="--c:#3A7BEA" aria-label="Blue ink" aria-pressed="true"></button>
-        <button class="swatch" type="button" style="--c:#F49CB0" aria-label="Pink ink" aria-pressed="false"></button>
-        <button class="swatch" type="button" style="--c:#2B2733" aria-label="Black ink" aria-pressed="false"></button>
-        <button class="pad-clear" type="button" aria-label="Clear the pad"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6.2 7l.9 12.5h9.8L17.8 7"/></svg></button>
-      </div>
-      <p class="toy-cap" aria-live="polite"><span>Point here to draw</span></p>
-    </div>
   </section>
 
   <section class="tools" aria-label="The tools">
@@ -596,9 +524,9 @@
         <p class="step" aria-live="polite"></p>
         <div class="demo-foot"><div class="dots"></div><button class="replay" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4.5h4.5"/></svg>Replay</button></div>
       </div>
-      <div class="toy l toy-rub" style="top: 90px" aria-hidden="true">
-        <div class="sheet"><canvas></canvas><span class="rubber"></span></div>
-        <p class="toy-cap"><span>Rub it out</span></p>
+      <div class="toy l toy-wheel" style="top: 90px">
+        <button class="spinner" type="button" aria-label="Spin Scrawl’s wheel"></button>
+        <p class="toy-cap" aria-live="polite"><span>Flick it, or click to spin</span></p>
       </div>
     </article>
 
@@ -681,45 +609,6 @@
         <li><span><strong>Paste the command and press Return.</strong> Pane opens by itself when it’s done.</span></li>
         <li><span><strong>Turn on Pane in Accessibility</strong> when it asks (see below).</span></li>
       </ol>
-      <div class="toy l toy-screen" style="top: 20px">
-        <div class="desk">
-          <div class="monitor" tabindex="0" role="img" aria-label="A tiny screen that blurs while you look away">
-            <div class="stage mini away">
-              <div class="bg">
-                <div class="win v1"><i style="left:8%;top:30%;width:62%"></i><i style="left:8%;top:46%;width:78%"></i><i style="left:8%;top:62%;width:46%"></i></div>
-                <div class="win v2"><i style="left:8%;top:32%;width:70%"></i><i style="left:8%;top:50%;width:52%"></i></div>
-                <div class="win v3"></div>
-              </div>
-              <div class="tint"></div>
-              <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
-              <div class="note">
-                <svg viewBox="0 0 60 44"><g fill="none" stroke="#B9A5F4" stroke-width="3.4" stroke-linecap="round"><path d="M21 12 q-3 -3 0 -6 t0 -6"/><path d="M31 12 q-3 -3 0 -6 t0 -6"/></g><rect x="7" y="36" width="38" height="5" rx="2.5" fill="#2B2733"/><g fill="#FFC593"><path d="M12 17 H40 V27 Q40 37 30 37 H22 Q12 37 12 27 Z"/><path d="M39 19.5 h3.5 a5.5 5.5 0 0 1 0 11 h-4 v-4 h4 a1.5 1.5 0 0 0 0 -3 h-3.5 z"/></g></svg>
-                <b>Back in a bit.</b>
-                <small class="since">Away since now</small>
-              </div>
-            </div>
-          </div>
-          <div class="neck"></div><div class="foot"></div>
-        </div>
-        <p class="toy-cap" aria-live="polite"><span>Point here to come back</span></p>
-      </div>
-      <div class="toy r toy-drop" style="top: 200px">
-        <div class="drop-row">
-          <button class="drop-icon" type="button" aria-label="Put Pane in Applications"><img src="icon.png" alt="" width="62" height="62"></button>
-          <svg class="drop-folder" viewBox="0 0 120 112" aria-hidden="true">
-            <g class="folder-drop">
-              <path d="M10 30 Q10 20 20 20 H45 Q51 20 54.5 24.5 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#2F86D6" transform="translate(0 6)"/>
-              <path d="M10 30 Q10 20 20 20 H45 Q51 20 54.5 24.5 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#4FA8EC"/>
-              <path d="M10 47 Q10 38 19 38 H101 Q110 38 110 47 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="url(#folderFront)"/>
-              <path d="M19 39.5 H101" stroke="#C9ECFF" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
-              <g transform="translate(0 1.4)" opacity="0.55"><use href="#appsGlyph" color="#E4F5FF"/></g>
-              <use href="#appsGlyph" color="#2F86D6"/>
-
-            </g>
-          </svg>
-        </div>
-        <p class="toy-cap" aria-live="polite"><span>Drag Pane into the folder</span></p>
-      </div>
       <div class="why"><b>Why no security prompt?</b> macOS only checks apps that a web browser downloaded. This command downloads with <code>curl</code>, so macOS opens Pane straight away. Run the same command any time to update. Had Scrawl before? It replaces the old app and keeps your drawings.</div>
     </div>
 
@@ -1690,18 +1579,6 @@
 
   // ---------- toys in the margins ----------
   const sayTo = (cap, text) => { cap.innerHTML = '<span></span>'; cap.firstChild.textContent = text; };
-  const canvasFor = (cv) => {
-    const dpr = Math.min(2, devicePixelRatio || 1), W = 180, H = 140;
-    cv.width = W * dpr; cv.height = H * dpr;
-    const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    return { ctx, W, H, dpr };
-  };
-  // Where the pointer is on a (slightly tilted) 180×140 sheet: undo the tilt around its center.
-  const localPoint = (cv, e) => {
-    const r = cv.getBoundingClientRect(), x = e.clientX - (r.left + r.width / 2), y = e.clientY - (r.top + r.height / 2);
-    const deg = parseFloat(getComputedStyle(cv.closest('.toy')).rotate) || 0, t = (-deg * Math.PI) / 180;
-    return { x: 90 + x * Math.cos(t) - y * Math.sin(t), y: 70 + x * Math.sin(t) + y * Math.cos(t) };
-  };
 
   // The wheel. Faces and their lips turn as two layers, so the lip always stays below, like the real wheel.
   (function () {
@@ -1785,82 +1662,6 @@
     set();
   })();
 
-  // The ink pad: point at it and the pen draws.
-  (function () {
-    const toy = document.querySelector('.toy-pad'); if (!toy) return;
-    const sheet = toy.querySelector('.sheet'), cv = sheet.querySelector('canvas'), cap = toy.querySelector('.toy-cap');
-    const { ctx, W, H } = canvasFor(cv);
-    const swatches = toy.querySelectorAll('.swatch');
-    let color = '#3A7BEA', lastP = null, inked = 0;
-    swatches.forEach((s) => s.addEventListener('click', () => {
-      color = s.style.getPropertyValue('--c').trim();
-      swatches.forEach((o) => o.setAttribute('aria-pressed', String(o === s)));
-    }));
-    cv.addEventListener('pointermove', (e) => {
-      const p = localPoint(cv, e);
-      if (lastP) {
-        ctx.strokeStyle = color; ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.moveTo(lastP.x, lastP.y); ctx.lineTo(p.x, p.y); ctx.stroke();
-        inked += Math.hypot(p.x - lastP.x, p.y - lastP.y);
-        if (inked > 600 && inked - Math.hypot(p.x - lastP.x, p.y - lastP.y) <= 600) sayTo(cap, 'Nice. The bin clears it');
-      }
-      lastP = p;
-    });
-    cv.addEventListener('pointerleave', () => { lastP = null; });
-    toy.querySelector('.pad-clear').addEventListener('click', () => {
-      if (reduce) { ctx.clearRect(0, 0, W, H); inked = 0; sayTo(cap, 'Point here to draw'); return; }
-      sheet.classList.add('wipe');
-      setTimeout(() => { ctx.clearRect(0, 0, W, H); sheet.classList.remove('wipe'); inked = 0; sayTo(cap, 'Point here to draw'); }, 380);
-    });
-  })();
-
-  // The eraser: rub out the scribble, and it draws itself back.
-  (function () {
-    const toy = document.querySelector('.toy-rub'); if (!toy) return;
-    const sheet = toy.querySelector('.sheet'), cv = sheet.querySelector('canvas'), rubber = sheet.querySelector('.rubber'), cap = toy.querySelector('.toy-cap');
-    const { ctx, W, H, dpr } = canvasFor(cv);
-    // A loopy line, like the one in Scrawl's icon.
-    const pts = Array.from({ length: 220 }, (_, i) => {
-      const t = i / 219;
-      return { x: 26 + 128 * t - 15 * Math.sin(Math.PI * 2 * 3.5 * t + 0.6), y: 74 + 24 * Math.cos(Math.PI * 2 * 3.5 * t + 0.6) - 14 * Math.sin(Math.PI * t) };
-    });
-    let full = 1, moves = 0, lastP = null, drawing = 0, done = false;
-    const count = () => {
-      const data = ctx.getImageData(0, 0, W * dpr, H * dpr).data; let n = 0;
-      for (let i = 3; i < data.length; i += 16) if (data[i] > 40) n++;
-      return n;
-    };
-    function draw(animate) {
-      cancelAnimationFrame(drawing);
-      ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, W, H);
-      ctx.strokeStyle = '#3A7BEA'; ctx.lineWidth = 6;
-      const upTo = (k) => { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i <= k; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.stroke(); };
-      if (!animate || reduce) { upTo(pts.length - 1); full = count(); return; }
-      const t0 = performance.now();
-      const step = (now) => {
-        const k = Math.min(1, (now - t0) / 1100), e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
-        ctx.clearRect(0, 0, W, H); upTo(Math.max(1, Math.round(e * (pts.length - 1))));
-        if (k < 1) drawing = requestAnimationFrame(step); else { full = count(); done = false; sayTo(cap, 'Rub it out'); }
-      };
-      drawing = requestAnimationFrame(step);
-    }
-    cv.addEventListener('pointermove', (e) => {
-      const p = localPoint(cv, e);
-      rubber.style.transform = `translate(${p.x}px, ${p.y}px)`;
-      if (done) return;
-      ctx.globalCompositeOperation = 'destination-out'; ctx.lineWidth = 24;
-      ctx.beginPath(); ctx.moveTo((lastP || p).x, (lastP || p).y); ctx.lineTo(p.x, p.y); ctx.stroke();
-      ctx.globalCompositeOperation = 'source-over';
-      lastP = p;
-      if (++moves % 8 === 0 && count() < full * 0.06) {
-        done = true; ctx.clearRect(0, 0, W, H); sayTo(cap, 'All gone');
-        setTimeout(() => draw(true), 1300);
-      }
-    });
-    cv.addEventListener('pointerleave', () => { lastP = null; });
-    draw(false);
-  })();
-
   // Away's mug: three sips, then a refill.
   (function () {
     const toy = document.querySelector('.toy-mug'); if (!toy) return;
@@ -1878,19 +1679,6 @@
       if (sips === 0) { mug.classList.add('empty'); mug.setAttribute('aria-label', 'Refill the mug'); mug.querySelector('.wisps').style.opacity = ''; }
       sayTo(cap, ['All gone. Click to refill', 'One sip left', 'Two sips left'][sips]);
     });
-  })();
-
-  // The tiny screen: sharp while you're pointing at it, blurred a moment after you leave.
-  (function () {
-    const toy = document.querySelector('.toy-screen'); if (!toy) return;
-    const mon = toy.querySelector('.monitor'), st = mon.querySelector('.stage'), cap = toy.querySelector('.toy-cap'), since = st.querySelector('.since');
-    let t = 0;
-    const stamp = () => { since.textContent = `Away since ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`; };
-    const wake = () => { clearTimeout(t); if (st.classList.contains('away')) { st.classList.remove('away'); sayTo(cap, 'Now look away'); } };
-    const leave = () => { clearTimeout(t); t = setTimeout(() => { stamp(); st.classList.add('away'); sayTo(cap, 'Point here to come back'); }, 1400); };
-    stamp();
-    mon.addEventListener('pointerenter', wake); mon.addEventListener('focus', wake);
-    mon.addEventListener('pointerleave', leave); mon.addEventListener('blur', leave);
   })();
 
   // Spin's turntable. The record turns while you point at it, scratches when you drag it, and changes when you click.
@@ -1981,51 +1769,6 @@
     setRec();
   })();
 
-  // Drag Pane into Applications.
-  (function () {
-    const toy = document.querySelector('.toy-drop'); if (!toy) return;
-    const icon = toy.querySelector('.drop-icon'), folder = toy.querySelector('.drop-folder'), cap = toy.querySelector('.toy-cap');
-    let drag = null, busy = false;
-    const over = (e) => { const r = folder.getBoundingClientRect(); return e.clientX > r.left - 8 && e.clientX < r.right + 8 && e.clientY > r.top - 8 && e.clientY < r.bottom + 8; };
-    function drop(dx, dy) {
-      busy = true;
-      const f = folder.getBoundingClientRect(), i = icon.getBoundingClientRect();
-      const tx = dx + (f.left + f.width / 2) - (i.left + i.width / 2), ty = dy + (f.top + f.height * 0.6) - (i.top + i.height / 2);
-      const anim = icon.animate([{ transform: `translate(${dx}px, ${dy}px) scale(1.08)` }, { transform: `translate(${tx}px, ${ty}px) scale(0.2)`, opacity: 0 }], { duration: reduce ? 1 : 300, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' });
-      anim.onfinish = () => {
-        folder.classList.remove('near'); toy.classList.remove('landed'); void toy.offsetWidth; toy.classList.add('landed');
-        sayTo(cap, 'Installed. Pane’s in Applications');
-        setTimeout(() => {
-          anim.cancel(); icon.style.transform = '';
-          if (!reduce) icon.animate([{ transform: 'scale(0.3)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 520, easing: 'cubic-bezier(.3,1.6,.5,1)' });
-          toy.classList.remove('landed'); busy = false; sayTo(cap, 'Drag Pane into the folder');
-        }, 2200);
-      };
-    }
-    icon.addEventListener('pointerdown', (e) => {
-      if (busy) return;
-      try { icon.setPointerCapture(e.pointerId); } catch {} icon.classList.add('held');
-      drag = { x: e.clientX, y: e.clientY, dx: 0, dy: 0 };
-      icon.style.transition = 'none';
-    });
-    icon.addEventListener('pointermove', (e) => {
-      if (!drag) return;
-      drag.dx = e.clientX - drag.x; drag.dy = e.clientY - drag.y;
-      icon.style.transform = `translate(${drag.dx}px, ${drag.dy}px) scale(1.08)`;
-      folder.classList.toggle('near', over(e));
-    });
-    const release = (e) => {
-      if (!drag) return;
-      const { dx, dy } = drag; drag = null; icon.classList.remove('held');
-      if (e.type === 'pointerup' && over(e)) { drop(dx, dy); return; }
-      folder.classList.remove('near');
-      icon.style.transition = 'transform 420ms var(--bouncy)'; icon.style.transform = '';
-      if (Math.hypot(dx, dy) > 10) sayTo(cap, 'Almost. Let go over the folder');
-    };
-    icon.addEventListener('pointerup', release);
-    icon.addEventListener('pointercancel', release);
-    icon.addEventListener('click', (e) => { if (e.detail === 0 && !busy) drop(0, 0); }); // Return or Space
-  })();
 </script>
 </body>
 </html>
