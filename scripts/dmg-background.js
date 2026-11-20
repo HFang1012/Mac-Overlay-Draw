@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const W = 640, H = 420;
-const html = `<!doctype html><html><head><style>
+const html = `<!doctype html><html><head><meta charset="utf-8"><style>
   html, body { margin: 0; overflow: hidden; } body { width: ${W}px; height: ${H}px; position: relative; }
   body { background: #F8FAFC; font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif; color: #262B36; -webkit-font-smoothing: antialiased; }
   /* A soft paper floor under the icons, like the card on the website. */
@@ -17,7 +17,7 @@ const html = `<!doctype html><html><head><style>
   .head { fill: #F49CB0; stroke: #F49CB0; stroke-width: 4; stroke-linejoin: round; }
   .head-lip { fill: #D96F8A; stroke: #D96F8A; stroke-width: 4; stroke-linejoin: round; }
   h1 { position: absolute; top: 34px; width: 100%; margin: 0; text-align: center; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
-  p { position: absolute; top: 346px; width: 100%; margin: 0; text-align: center; font-size: 14px; font-weight: 600; color: #5E6779; }
+  p { position: absolute; top: 336px; left: 70px; right: 70px; margin: 0; text-align: center; font-size: 14px; line-height: 1.45; font-weight: 600; color: #5E6779; }
 </style></head><body>
   <h1>Drag Scrawl into Applications</h1>
   <div class="floor"></div>
@@ -26,7 +26,7 @@ const html = `<!doctype html><html><head><style>
     <path class="ink" id="ink" d="M14 98 C62 98 120 90 142 62 C160 38 150 14 130 18 C106 23 108 64 142 86 C184 112 252 104 294 70"/>
     <path class="head-lip" id="headLip" transform="translate(0 6)"/><path class="head" id="head"/>
   </svg>
-  <p>Then open Scrawl from Applications. The first time, right-click it and choose Open.</p>
+  <p>Then open Scrawl. If macOS says it can’t verify it, go to System Settings, then Privacy &amp; Security, and click Open Anyway.</p>
   <script>
     const ink = document.getElementById('ink'), len = ink.getTotalLength();
     const end = ink.getPointAtLength(len), back = ink.getPointAtLength(len - 8);

@@ -105,6 +105,25 @@
   .steps strong { color: var(--ink); font-weight: 800; }
   kbd { font-family: inherit; font-weight: 800; color: var(--ink); background: var(--card); box-shadow: 0 2px 0 var(--card-lip); border-radius: 6px; padding: 0 6px; }
 
+  .steps em { font-style: normal; font-weight: 800; color: var(--ink); }
+
+  /* Optional Terminal route: tucked away, opens with a click. */
+  .terminal { max-width: 33em; margin: 22px auto 0; padding-left: 50px; color: var(--ink-2); font-weight: 600; font-size: 15px; }
+  .terminal summary { cursor: pointer; font-weight: 800; color: var(--ink); list-style: none; display: inline-flex; align-items: center; gap: 8px; }
+  .terminal summary::-webkit-details-marker { display: none; }
+  .terminal summary::before { content: ""; width: 8px; height: 8px; border-right: 2.5px solid var(--pink-lip); border-bottom: 2.5px solid var(--pink-lip); rotate: -45deg; transition: rotate 300ms var(--bouncy); }
+  .terminal[open] summary::before { rotate: 45deg; }
+  .terminal p { margin: 10px 0 0; }
+  .cmd { margin-top: 10px; display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 16px; border-radius: 16px; background: var(--card); box-shadow: 0 4px 0 var(--card-lip); }
+  .cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; color: var(--ink); }
+  .cmd button {
+    flex: none; border: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 800; color: var(--ink);
+    height: 32px; padding: 0 14px; border-radius: 16px; background: var(--pink); box-shadow: 0 3px 0 var(--pink-lip);
+    transition: transform 180ms var(--bouncy), box-shadow 180ms var(--bouncy);
+  }
+  .cmd button:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--pink-lip); }
+  @media (max-width: 600px) { .terminal { padding-left: 0; } }
+
   footer { text-align: center; color: var(--ink-2); font-size: 14px; font-weight: 600; padding: 72px 24px 48px; }
   footer a { font-weight: 800; text-decoration-color: var(--pink); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 
@@ -182,9 +201,18 @@
 
     <ol class="steps">
       <li><span><strong>Drag Scrawl into Applications.</strong> Then you can eject the Scrawl disk.</span></li>
-      <li><span><strong>Right-click Scrawl and choose Open</strong> the first time. Scrawl isn’t from the App Store, so macOS asks you to confirm once.</span></li>
+      <li><span><strong>Open Scrawl, then allow it once.</strong> Scrawl isn’t from the App Store, so the first time macOS says it can’t verify it. Click <em>Done</em>, open System Settings, then Privacy &amp; Security, scroll down and click <em>Open Anyway</em> next to Scrawl. Confirm with your password or Touch ID. After that it opens like any other app.</span></li>
       <li><span><strong>Turn on Scrawl in Accessibility.</strong> Open System Settings, then Privacy &amp; Security, then Accessibility. Scrawl needs this to notice when you hold <kbd>⌥</kbd>.</span></li>
     </ol>
+
+    <details class="terminal">
+      <summary>Or use Terminal instead of step 2</summary>
+      <p>This tells macOS you trust the copy of Scrawl you downloaded, so it opens without the warning.</p>
+      <div class="cmd">
+        <code id="cmd">xattr -dr com.apple.quarantine /Applications/Scrawl.app</code>
+        <button type="button" id="copy">Copy</button>
+      </div>
+    </details>
   </section>
 </main>
 
@@ -193,6 +221,19 @@
 </footer>
 
 <script>
+  // Copy the Terminal command; the button says "Copied" for a moment so you know it worked.
+  document.getElementById('copy').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    try {
+      await navigator.clipboard.writeText(document.getElementById('cmd').textContent);
+      btn.textContent = 'Copied';
+    } catch {
+      getSelection().selectAllChildren(document.getElementById('cmd'));
+      btn.textContent = 'Press ⌘C';
+    }
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+  });
+
   const isMac = /Macintosh|Mac OS X/.test(navigator.userAgent);
   const fine = document.getElementById('fine');
   const button = document.getElementById('download');
