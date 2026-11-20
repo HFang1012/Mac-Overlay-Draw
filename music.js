@@ -254,11 +254,17 @@ const running = (bundle, body) => osa(`ObjC.import('AppKit');
   app ? String((() => { ${body} })()) : ''`);
 const isHidden = (bundle) => running(bundle, 'return app.hidden;').then((x) => x === 'true').catch(() => false);
 const hideApp = (bundle) => running(bundle, 'app.hide; return "ok";').catch(() => {});
-// Bring `bundle` forward; if that doesn't take, ask it the old way (it may already be allowed).
+// Bring `bundle` forward. Newer macOS only lets an app come forward when the active one gives way,
+// so try, in turn: AppKit, LaunchServices (`open -b`, which isn't held to that), then Apple Events.
+const openBundle = (bundle) => new Promise((resolve) => execFile('open', ['-b', bundle], () => resolve()));
 async function giveFront(bundle) {
   await running(bundle, 'app.activateWithOptions($.NSApplicationActivateAllWindows); return "ok";').catch(() => {});
   await wait(60);
-  if ((await frontBundle()) !== bundle) await osa(`tell application id ${lit(bundle)} to activate`, { js: false }).catch(() => {});
+  if ((await frontBundle()) === bundle) return;
+  await openBundle(bundle);
+  await wait(80);
+  if ((await frontBundle()) === bundle) return;
+  await osa(`tell application id ${lit(bundle)} to activate`, { js: false }).catch(() => {});
 }
 async function keepFront(appId, run, { watch = 3000 } = {}) {
   const musicBundle = APPS[appId]?.bundle;
@@ -283,6 +289,25 @@ async function keepFront(appId, run, { watch = 3000 } = {}) {
 // Skipping ahead a few songs in one go (one osascript, no window coming forward).
 const skip = (appName, n) => `(() => { const a = Application(${lit(appName)}); for (let i = 0; i < ${Number(n)}; i++) { a.nextTrack(); delay(0.05); } })()`;
 const SKIP_MAX = 8;
+// Spotify's next and previous never bring its window forward (its "play track" does). So when the
+// list is in play order, reach a song by stepping to it: forward with next, back with previous
+// (from the start of the song, so each previous is one song back). Muted while it steps, so you
+// don't hear a blip of every song on the way; the volume comes back once it's there.
+const STEP_MAX = 60;
+const spotifySteps = (n) => `(() => {
+  const a = Application('Spotify');
+  const steps = ${Number(n)}, count = Math.abs(steps);
+  let vol = null;
+  try { vol = a.soundVolume(); } catch (e) {}
+  try {
+    if (count > 1 && vol != null) a.soundVolume = 0;
+    if (steps < 0) a.playerPosition = 0;
+    for (let i = 0; i < count; i++) { if (steps > 0) a.nextTrack(); else a.previousTrack(); delay(0.06); }
+  } finally {
+    if (count > 1 && vol != null) { delay(0.12); a.soundVolume = vol; }
+  }
+  return 'ok';
+})()`;
 
 /** Plays the song at `at` in `list` (as built by musicList / spotifyList). */
 async function playAt(appId, list, at) {
@@ -290,10 +315,12 @@ async function playAt(appId, list, at) {
   if (!item) return;
   const ahead = at - list.index;
   try {
-    if (list.source === 'spotify' && item.skip === ahead && ahead > 0 && ahead <= SKIP_MAX) {
-      // A few songs ahead in Spotify's queue: skipping lands on it and keeps the queue (and the
-      // playlist) as they are, without Spotify jumping forward.
-      await osa(skip('Spotify', ahead));
+    const reachable = list.source === 'spotify' && ahead !== 0 && Math.abs(ahead) <= STEP_MAX &&
+      (list.ordered || (ahead > 0 && item.skip === ahead));
+    if (reachable) {
+      // In play order (or in Spotify's queue): step there with next / previous. Keeps the queue and
+      // the playlist as they are, and Spotify's window stays where it is.
+      await osa(spotifySteps(ahead), { timeout: 20000 });
     } else await keepFront(appId, () => playOne(list, item, ahead));
   } catch (err) {
     console.warn('Spin: play failed:', err.message);
@@ -650,7 +677,8 @@ async function spotifyList(np) {
     back = (recent?.items || []).map((x) => fmt(x.track)).filter(Boolean);
     if (back.length && back[0].uri === np.track.id) back.shift(); // the song that's on now
   }
-  return { source: 'spotify', context: ctx?.uri || null, items: [...back.reverse(), current, ...up], index: back.length, loop: loops };
+  // ordered: every song here is exactly its distance away by next / previous.
+  return { source: 'spotify', context: ctx?.uri || null, items: [...back.reverse(), current, ...up], index: back.length, loop: loops, ordered };
 }
 
 module.exports = { playlists, playPlaylist, keepFront, frontBundle, APPS, refresh, snapshot, onChange, act, playAt, connectSpotify, disconnectSpotify, spotifyAccount, REDIRECT };
