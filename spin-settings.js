@@ -312,6 +312,7 @@ function showSpotify(acct, redirect) {
   document.getElementById('spotifyLinked').hidden = !acct.connected;
   document.getElementById('spotifyLink').hidden = acct.connected;
   document.getElementById('spotifyName').textContent = acct.name ? `Linked as ${acct.name}` : 'Linked';
+  document.getElementById('spotifyRelink').hidden = !acct.connected || acct.canPlay !== false;
   const id = document.getElementById('spotifyId');
   if (!id.value && acct.clientId) id.value = acct.clientId;
 }

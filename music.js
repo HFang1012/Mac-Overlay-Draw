@@ -233,7 +233,10 @@ async function act(appId, cmd, arg) {
 // ---------- staying in your app ----------
 // Spotify's "play track" (and sometimes Music's "play") brings its window to the front. Spin is for
 // changing songs without leaving what you're doing, so note the app in front first and, if the music
-// app takes over, hand the front straight back. lsappinfo needs no permission.
+// app takes over, hand the front straight back.
+// All of this goes through AppKit's list of running apps (lsappinfo and NSRunningApplication), not
+// Apple Events: telling another app to activate would need Pane to be allowed to control that app too,
+// and without that the hand-back silently failed and left Spotify in front.
 function frontBundle() {
   return new Promise((resolve) => {
     execFile('lsappinfo', ['front'], (err, asn) => {
@@ -245,19 +248,34 @@ function frontBundle() {
   });
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-async function keepFront(appId, run) {
+const running = (bundle, body) => osa(`ObjC.import('AppKit');
+  const list = $.NSRunningApplication.runningApplicationsWithBundleIdentifier(${lit(bundle)});
+  const app = list.count ? list.objectAtIndex(0) : null;
+  app ? String((() => { ${body} })()) : ''`);
+const isHidden = (bundle) => running(bundle, 'return app.hidden;').then((x) => x === 'true').catch(() => false);
+const hideApp = (bundle) => running(bundle, 'app.hide; return "ok";').catch(() => {});
+// Bring `bundle` forward; if that doesn't take, ask it the old way (it may already be allowed).
+async function giveFront(bundle) {
+  await running(bundle, 'app.activateWithOptions($.NSApplicationActivateAllWindows); return "ok";').catch(() => {});
+  await wait(60);
+  if ((await frontBundle()) !== bundle) await osa(`tell application id ${lit(bundle)} to activate`, { js: false }).catch(() => {});
+}
+async function keepFront(appId, run, { watch = 3000 } = {}) {
   const musicBundle = APPS[appId]?.bundle;
   const before = musicBundle ? await frontBundle() : null;
+  if (!before || before === musicBundle) return run();
+  const wasHidden = await isHidden(musicBundle);
   await run();
-  if (!before || before === musicBundle) return;
-  // The music app can come forward late, and more than once (Spotify does it twice), so keep watching
-  // for a while after each hand-back.
-  let until = Date.now() + 1500;
+  // The music app can come forward late (a playlist loading), and more than once (Spotify does it
+  // twice), so keep watching for a while after each hand-back.
+  let until = Date.now() + watch;
   while (Date.now() < until) {
     await wait(40);
     if ((await frontBundle()) === musicBundle) {
-      await osa(`tell application id ${lit(before)} to activate`, { js: false }).catch(() => {});
-      until = Math.max(until, Date.now() + 800);
+      // Hidden before? Hide it again: macOS then hands the front back by itself.
+      if (wasHidden) await hideApp(musicBundle);
+      if ((await frontBundle()) === musicBundle) await giveFront(before);
+      until = Math.max(until, Date.now() + 1000);
     }
   }
 }
@@ -282,6 +300,18 @@ async function playAt(appId, list, at) {
   }
   setTimeout(() => refresh(appId), 400);
 }
+// Starting playback through Spotify's Web API changes the song without touching Spotify's window.
+// It needs Spotify Premium, a device that's on, and the playback permission (added to the link in
+// 1.4.2; links made before can't, until you link again). When it can't, Spin falls back to AppleScript.
+async function spotifyApiPlay(body) {
+  try {
+    await apiSend('PUT', '/me/player/play', body);
+    return true;
+  } catch (err) {
+    console.warn('Spin: Spotify Web API play didn’t work, using AppleScript:', err.message);
+    return false;
+  }
+}
 async function playOne(list, item, ahead) {
   if (list.source === 'music') {
     await osa(`(() => {
@@ -295,8 +325,10 @@ async function playOne(list, item, ahead) {
       await osa(skip('Spotify', ahead), { timeout: 15000 });
     } else if (item.ctx && list.context) {
       // A song of the playlist or album: play it there, so the rest of it follows.
+      if (await spotifyApiPlay({ context_uri: list.context, offset: { uri: item.uri } })) return;
       await osa(`Application('Spotify').playTrack(${lit(item.uri)}, { inContext: ${lit(list.context)} })`);
     } else {
+      if (await spotifyApiPlay({ uris: [item.uri] })) return;
       await osa(`Application('Spotify').playTrack(${lit(item.uri)})`);
     }
   }
@@ -366,7 +398,9 @@ async function playPlaylist(appId, id) {
       })()`));
     } else if (appId === 'spotify') {
       if (!/^spotify:(user:[^:]+:)?playlist:[0-9A-Za-z]+$/.test(String(id))) return { ok: false };
-      await keepFront(appId, () => osa(`Application('Spotify').playTrack(${lit(id)})`));
+      if (!(await spotifyApiPlay({ context_uri: id }))) {
+        await keepFront(appId, () => osa(`Application('Spotify').playTrack(${lit(id)})`));
+      }
       spotifyNowCtx = id;
     } else return { ok: false };
   } catch (err) {
@@ -381,7 +415,7 @@ async function playPlaylist(appId, id) {
 // ---------- Spotify Web API (only for the song list) ----------
 const SPOTIFY_PORT = 43117;
 const REDIRECT = `http://127.0.0.1:${SPOTIFY_PORT}/callback`;
-const SCOPES = 'user-read-playback-state user-read-currently-playing user-read-recently-played playlist-read-private playlist-read-collaborative';
+const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-recently-played playlist-read-private playlist-read-collaborative';
 const tokenFile = () => path.join(app.getPath('userData'), 'spotify.json');
 let tokens = null; // { clientId, access, refresh, expires, name }
 
@@ -401,7 +435,10 @@ function saveTokens(t) {
 }
 function spotifyAccount() {
   const t = loadTokens();
-  return t?.refresh ? { connected: true, name: t.name || null, clientId: t.clientId } : { connected: false };
+  // canPlay: linked with the playback permission, so songs and playlists start without Spotify's window.
+  // Unknown (an old link not yet refreshed) counts as yes until Spotify says otherwise.
+  const canPlay = !t?.scope || t.scope.split(' ').includes('user-modify-playback-state');
+  return t?.refresh ? { connected: true, name: t.name || null, clientId: t.clientId, canPlay } : { connected: false };
 }
 function disconnectSpotify() {
   tokens = null;
@@ -443,7 +480,7 @@ function connectSpotify(clientId) {
         });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error_description || j.error || r.status);
-        saveTokens({ clientId, access: j.access_token, refresh: j.refresh_token, expires: Date.now() + j.expires_in * 1000 - 30000 });
+        saveTokens({ clientId, access: j.access_token, refresh: j.refresh_token, scope: j.scope || SCOPES, expires: Date.now() + j.expires_in * 1000 - 30000 });
         const me = await api('/me').catch(() => null);
         if (me) saveTokens({ ...tokens, name: me.display_name || me.id });
         res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -477,7 +514,7 @@ async function accessToken() {
     if (j.error === 'invalid_grant') disconnectSpotify(); // revoked: link again from settings
     throw new Error(j.error_description || `token ${r.status}`);
   }
-  saveTokens({ ...t, access: j.access_token, refresh: j.refresh_token || t.refresh, expires: Date.now() + j.expires_in * 1000 - 30000 });
+  saveTokens({ ...t, access: j.access_token, refresh: j.refresh_token || t.refresh, scope: j.scope || t.scope, expires: Date.now() + j.expires_in * 1000 - 30000 });
   return tokens.access;
 }
 async function api(p) {
@@ -489,6 +526,19 @@ async function api(p) {
   if (r.status === 204) return null;
   if (!r.ok) throw Object.assign(new Error(`Spotify ${r.status} for ${p}`), { status: r.status });
   return r.json();
+}
+
+/** A change through the Web API (PUT / POST). Throws with Spotify's reason when it says no. */
+async function apiSend(method, p, body) {
+  const t = loadTokens();
+  if (t?.scope && !t.scope.split(' ').includes('user-modify-playback-state')) throw new Error('linked without playback permission');
+  const token = await accessToken();
+  if (!token) throw new Error('not linked');
+  const url = `https://api.spotify.com/v1${p}`;
+  const r = await fetch(url, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (r.ok) return true;
+  const j = await r.json().catch(() => ({}));
+  throw Object.assign(new Error(`Spotify ${r.status}: ${j.error?.reason || j.error?.message || 'refused'}`), { status: r.status });
 }
 
 const fmt = (t, images) => t && {

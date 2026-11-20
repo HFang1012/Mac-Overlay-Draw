@@ -496,7 +496,7 @@
   .pl.on small { color: var(--accent-ink); }
   .pl.busy { opacity: 0.6; pointer-events: none; }
   .pl-note { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 0; }
-  .pl-note:empty { display: none; }
+  .pl-note:empty, .pl-note[hidden] { display: none; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
@@ -758,6 +758,7 @@
       <div class="row stack spin-row rise" style="--d:340ms" id="spotifyRow">
         <div><h3>Spotify queue</h3><p>Spotify keeps its queue to itself. Link your account once to see it, and your playlists, on the wheel. Play, skip and volume work without this.</p></div>
         <div class="linked" id="spotifyLinked" hidden><span><span class="dot"></span><span id="spotifyName">Linked</span></span><button class="mini" id="spotifyUnlink">Unlink</button></div>
+        <p class="pl-note" id="spotifyRelink" hidden>Link again (Unlink, then Link Spotify) so songs and playlists start without bringing Spotify’s window forward.</p>
         <div class="link" id="spotifyLink">
           <ol>
             <li><span class="inline">Make a free app at <button class="mini" id="spotifyDash">developer.spotify.com</button></span></li>
