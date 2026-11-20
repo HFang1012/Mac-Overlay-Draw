@@ -107,9 +107,15 @@ function pinOverlay(w) {
     if (b.x !== d.bounds.x || b.y !== d.bounds.y || b.width !== d.bounds.width || b.height !== d.bounds.height) w.setBounds(d.bounds);
   }
   w.setAlwaysOnTop(true, OVERLAY_LEVEL);
-  // skipTransformProcessType: Electron's full-screen trick briefly turns Scrawl into a background app,
-  // which can pull macOS back to Scrawl's Space. It's needed once, at creation; never again after.
-  w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
+  joinSpaces(w);
+}
+
+// Every layer joins every Space, so drawings follow you around.
+// Layers are panels, which can sit over full-screen apps on their own. So skipTransformProcessType, always:
+// Electron's full-screen trick briefly turns Pane into a background app and back, and that flip used to
+// drop Pane's settings window on top of whatever full-screen app you were in, instead of on a desktop.
+function joinSpaces(w) {
+  if (!w.isDestroyed()) w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
 }
 
 // A screen point in a layer's own coordinates, from the window's real frame (not the display's),
@@ -149,8 +155,12 @@ function createOverlays() {
     });
     w.displayId = String(d.id);
     w.setIgnoreMouseEvents(true); // from the very start: an idle layer must never catch a click
+    // Mark the layer as a background window, not one of Pane's real windows. Without this, a layer on
+    // every Space (full-screen apps included) makes macOS treat Pane as present wherever you swipe: with
+    // Pane in front, swiping into a full-screen app bounced you straight back to Pane's window.
+    w.setHiddenInMissionControl(true);
     w.setAlwaysOnTop(true, OVERLAY_LEVEL);
-    w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); // the one time the full-screen trick runs
+    joinSpaces(w);
     w.loadFile(path.join(__dirname, 'overlay.html'), { query: { id: String(d.id) } });
     w.once('ready-to-show', () => { pinOverlay(w); w.ready = true; syncOverlays(); });
     overlays.set(String(d.id), w);
@@ -175,7 +185,7 @@ function syncOverlays() {
       if (!w.isVisible()) {
         pinOverlay(w);
         w.showInactive();
-        w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
+        joinSpaces(w);
       }
     } else if (w.isVisible() && !w.hideTimer) {
       // Turned off: let the drawings fade out first, then take the layer away.
@@ -361,7 +371,35 @@ function keyInfo(code) {
 function isHotkey(code) { return settings.hotkey.codes.includes(code); }
 function isDrawKey(code) { return settings.drawKey.codes.includes(code); }
 const KEY_LABEL = { hotkey: 'wheel key', drawKey: 'draw key' };
+
+// The wheel opens only when its key is pressed on its own. If anything else is already held (⌃, ⌘, ⇧,
+// a letter…), you're pressing a shortcut, so the wheel stays shut until the wheel key is let go.
+// Modifiers come from the event's own flags, which macOS keeps accurate. Other keys are remembered
+// as they go down; a held key repeats its key-down, so one not seen for a second counts as let go
+// (macOS sometimes drops key-ups, and a stuck entry must never block the wheel for good).
+const heldKeys = new Map(); // keycode -> last seen
+const MOD_FLAGS = [
+  ['altKey', [UiohookKey.Alt, UiohookKey.AltRight]],
+  ['ctrlKey', [UiohookKey.Ctrl, UiohookKey.CtrlRight]],
+  ['metaKey', [UiohookKey.Meta, UiohookKey.MetaRight]],
+  ['shiftKey', [UiohookKey.Shift, UiohookKey.ShiftRight]],
+];
+const MOD_CODES = new Set(MOD_FLAGS.flatMap(([, codes]) => codes));
+let hotkeyBlocked = false; // the wheel key went down mid-shortcut: ignore it until it's let go
+function otherKeysHeld(e) {
+  const own = settings.hotkey.codes;
+  for (const [flag, codes] of MOD_FLAGS) {
+    if (e[flag] && !codes.some((c) => own.includes(c))) return true;
+  }
+  const now = Date.now();
+  for (const [code, seen] of heldKeys) {
+    if (now - seen > 1000) heldKeys.delete(code);
+    else if (!own.includes(code)) return true;
+  }
+  return false;
+}
 uIOhook.on('keydown', (e) => {
+  if (!MOD_CODES.has(e.keycode)) heldKeys.set(e.keycode, Date.now());
   if (binding) {
     const which = binding;
     binding = false;
@@ -395,8 +433,11 @@ uIOhook.on('keydown', (e) => {
   if (isHotkey(e.keycode)) {
     // Open whenever the wheel isn't already up. Don't trust `holding` here: tapping fast can make macOS
     // drop a key-up, which used to leave `holding` stuck on and the wheel never opening again.
+    if (menu.open) return;
+    if (hotkeyBlocked) return; // still held from inside a shortcut
+    if (otherKeysHeld(e)) { hotkeyBlocked = true; return; }
     holding = true;
-    if (!menu.open) openMenu();
+    openMenu();
     return;
   }
   // Any other key while the wheel is up means the user is typing a combo (⌥+letter) — get out of the way.
@@ -404,6 +445,8 @@ uIOhook.on('keydown', (e) => {
   if (e.keycode === UiohookKey.Escape) dropTool();
 });
 uIOhook.on('keyup', (e) => {
+  heldKeys.delete(e.keycode);
+  if (isHotkey(e.keycode)) hotkeyBlocked = false;
   if (away || awayBinding || !settings.enabled) return;
   if (isDrawKey(e.keycode)) { penUp(); return; }
   if (!isHotkey(e.keycode)) return;
@@ -496,8 +539,9 @@ function showAway(preview = false) {
       webPreferences: { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false },
     });
     const primary = d.id === cursor.id;
+    w.setHiddenInMissionControl(true); // a background window, like Scrawl's layers (see createOverlays)
     w.setAlwaysOnTop(true, OVERLAY_LEVEL, 2); // above Scrawl's layers, so drawings blur too
-    // The full-screen trick already ran once for Scrawl's layers; never again (it can jump Spaces).
+    // Panels sit over full-screen apps without Electron's full-screen trick (see joinSpaces).
     w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
     w.loadFile(path.join(__dirname, 'away.html'), { query: { primary: primary ? '1' : '0' } });
     w.once('ready-to-show', () => {
