@@ -11,7 +11,7 @@ let strokes = [];
 let live = null;
 let menu = null; // { x, y, items, hover }
 let leaveTimer = null;
-let penKey = false; // the draw key is holding the pen down
+let penKey = false; // the pen is down (mouse button or draw key, both sent by the main process)
 
 // ---------- ink ----------
 function resize() {
@@ -54,7 +54,7 @@ function redraw() {
   if (live) drawStroke(live);
 }
 
-// One stroke, fed by the mouse button or by the draw key. Both end in finish().
+// One stroke, fed by the mouse button or by the draw key (both via pen:down). Both end in finish().
 function begin(x, y) {
   if (!state.activeTool) return;
   const s = state.settings;
@@ -89,18 +89,12 @@ function finish() {
   redraw();
 }
 
+// The layer catches clicks only so they don't land in the app beneath. The strokes themselves come from
+// the main process (pen:down / pen:up), for the mouse button and the draw key alike: macOS can stop
+// giving a long-lived layer its clicks, but the global hook always sees them.
 cv.addEventListener('pointerdown', (e) => {
-  if (e.button === 2) { scrawl.send('tool:drop'); return; }
-  if (e.button !== 0 || penKey) return;
-  cv.setPointerCapture(e.pointerId);
-  begin(e.clientX, e.clientY);
+  if (e.button === 2) scrawl.send('tool:drop');
 });
-cv.addEventListener('pointermove', (e) => {
-  if (!live || penKey) return;
-  for (const ev of (e.getCoalescedEvents ? e.getCoalescedEvents() : [e])) extend(ev.clientX, ev.clientY);
-});
-cv.addEventListener('pointerup', () => { if (!penKey) finish(); });
-cv.addEventListener('pointercancel', () => { if (!penKey) finish(); });
 cv.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // ---------- drawing animations ----------

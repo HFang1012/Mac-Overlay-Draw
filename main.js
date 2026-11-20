@@ -66,7 +66,7 @@ let activeTool = null; // 'pencil' | 'eraser' | null
 let visible = true;
 let holding = false;
 let binding = false; // false, or which key is being chosen: 'hotkey' | 'drawKey'
-let pen = null; // { displayId } while the draw key is held
+let pen = null; // { displayId, by: 'key' | 'mouse' } while the draw key or the mouse button holds the pen down
 let quitting = false;
 const menu = { open: false, x: 0, y: 0, displayId: null, hover: -1, items: [] };
 const overlays = new Map(); // displayId -> BrowserWindow
@@ -177,8 +177,12 @@ function overlayNeeded() {
 function syncOverlays() {
   for (const [, w] of overlays) {
     if (w.isDestroyed() || !w.ready) continue;
-    // Clicks pass straight through unless a pencil or eraser is in hand.
-    w.setIgnoreMouseEvents(!activeTool);
+    // Clicks pass straight through unless a pencil or eraser is in hand. On picking one up, let go and
+    // take hold again, so macOS really hands the clicks to the layer rather than to the app beneath.
+    const catching = !!activeTool;
+    if (catching && !w.catching) w.setIgnoreMouseEvents(true);
+    w.setIgnoreMouseEvents(!catching);
+    w.catching = catching;
     if (overlayNeeded()) {
       clearTimeout(w.hideTimer);
       w.hideTimer = null;
@@ -338,16 +342,20 @@ function dropTool() {
   broadcast();
 }
 
-// ---------- draw key: pen down without clicking ----------
-function penDown() {
+// ---------- pen down: the draw key, or the mouse button ----------
+// Both come from the global hook, not from the layer's own clicks. A layer that has been on screen a
+// long time (across Spaces, full-screen apps, sleep) can stop getting clicks from macOS even though it
+// asked for them, and then clicking drew nothing while the draw key still worked. The hook always sees both.
+function penDown(by) {
   if (!activeTool || menu.open || pen) return;
   const p = screen.getCursorScreenPoint();
   const d = screen.getDisplayNearestPoint(p);
-  pen = { displayId: String(d.id) };
+  pen = { displayId: String(d.id), by };
   overlays.get(pen.displayId)?.webContents.send('pen:down', toLocal(pen.displayId, p));
 }
-function penUp() {
-  if (!pen) return;
+// With `by`, only lifts a pen that the same thing put down (letting go of ⌃ doesn't end a mouse stroke).
+function penUp(by) {
+  if (!pen || (by && pen.by !== by)) return;
   overlays.get(pen.displayId)?.webContents.send('pen:up');
   pen = null;
 }
@@ -427,7 +435,7 @@ uIOhook.on('keydown', (e) => {
   }
   if (isDrawKey(e.keycode)) {
     if (menu.open) closeMenu(false);
-    else penDown();
+    else penDown('key');
     return;
   }
   if (isHotkey(e.keycode)) {
@@ -448,10 +456,19 @@ uIOhook.on('keyup', (e) => {
   heldKeys.delete(e.keycode);
   if (isHotkey(e.keycode)) hotkeyBlocked = false;
   if (away || awayBinding || !settings.enabled) return;
-  if (isDrawKey(e.keycode)) { penUp(); return; }
+  if (isDrawKey(e.keycode)) { penUp('key'); return; }
   if (!isHotkey(e.keycode)) return;
   holding = false;
   closeMenu(true);
+});
+// Mouse button 1 is left, 2 is right. Right-click puts the tool down.
+uIOhook.on('mousedown', (e) => {
+  if (away || awayBinding || !settings.enabled || !activeTool || menu.open) return;
+  if (e.button === 1) penDown('mouse');
+  else if (e.button === 2) dropTool();
+});
+uIOhook.on('mouseup', (e) => {
+  if (e.button === 1) penUp('mouse');
 });
 
 
