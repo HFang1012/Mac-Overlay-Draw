@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scrawl</title>
+<meta name="description" content="Scrawl for Mac: hold a key, pick a pencil from the wheel, and draw on anything on your screen.">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<meta property="og:title" content="Scrawl">
+<meta property="og:description" content="Hold a key. Draw on anything.">
+<meta property="og:image" content="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Macs use the system's rounded face (ui-rounded), like the app. Nunito stands in everywhere else. -->
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #E3E8EF;      /* sketch paper, the app's window background */
+    --paper-deep: #D3DAE4;
+    --card: #F8FAFC;
+    --card-lip: #DCE2EA;
+    --well: #EBEFF4;
+    --ink: #262B36;        /* graphite */
+    --ink-2: #5E6779;
+    --pink: #F49CB0;       /* eraser pink */
+    --pink-lip: #D96F8A;
+    --sky: #A9C1EC;
+    --sky-lip: #7F9BD1;
+    --font: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
+    --bouncy: linear(0, 0.055, 0.192, 0.373, 0.565, 0.745, 0.898, 1.016, 1.098, 1.144, 1.162, 1.158, 1.138, 1.11, 1.079, 1.049, 1.023, 1.002, 0.987, 0.978, 0.974, 0.974, 0.976, 0.981, 0.986, 0.991, 0.995, 0.999, 1);
+    --smooth: linear(0, 0.067, 0.217, 0.391, 0.558, 0.7, 0.811, 0.893, 0.95, 0.985, 1.006, 1.016, 1.02, 1.019, 1.016, 1.013, 1.01, 1.007, 1.004, 1.003, 1.001, 1, 1);
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--paper); }
+  body {
+    margin: 0; color: var(--ink); font-family: var(--font); font-size: 17px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--pink-lip); outline-offset: 4px; border-radius: 8px; }
+
+  main { max-width: 720px; margin: 0 auto; padding: 88px 24px 56px; }
+
+  /* ---------- hero ---------- */
+  .hero { text-align: center; }
+  .icon { width: 128px; height: 128px; display: block; margin: 0 auto; filter: drop-shadow(0 14px 22px rgba(38, 43, 54, 0.18)); }
+  h1 { font-size: 56px; line-height: 1; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 0; }
+  .lede { color: var(--ink-2); font-size: 19px; font-weight: 600; max-width: 30em; margin: 14px auto 0; }
+
+  /* The download button is a keycap: a pink face on a darker lip that presses in. */
+  .download {
+    display: inline-flex; align-items: center; gap: 12px; margin-top: 34px;
+    padding: 0 30px; height: 60px; border-radius: 30px;
+    background: var(--pink); box-shadow: 0 6px 0 var(--pink-lip);
+    font-size: 19px; font-weight: 800; text-decoration: none; color: var(--ink);
+    transition: transform 220ms var(--bouncy), box-shadow 220ms var(--bouncy);
+  }
+  .download:hover { transform: translateY(-2px); box-shadow: 0 8px 0 var(--pink-lip); }
+  .download:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--pink-lip); }
+  .download svg { width: 22px; height: 22px; }
+  .fine { color: var(--ink-2); font-size: 14px; font-weight: 600; margin: 18px 0 0; }
+
+  /* ---------- install ---------- */
+  .install { margin-top: 96px; }
+  h2 { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; text-align: center; margin: 0; }
+  .install > .sub { text-align: center; color: var(--ink-2); font-weight: 600; margin: 6px 0 0; }
+
+  /* A disk-image window, like the one the download opens. */
+  .disk {
+    margin-top: 28px; background: var(--card); border-radius: 28px; box-shadow: 0 7px 0 var(--card-lip);
+    overflow: hidden;
+  }
+  .disk-bar { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 18px; background: var(--well); }
+  .disk-bar i { width: 12px; height: 12px; border-radius: 50%; background: var(--paper-deep); }
+  .disk-bar span { flex: 1; text-align: center; font-size: 13px; font-weight: 700; color: var(--ink-2); margin-right: 52px; }
+  .disk-body {
+    display: grid; grid-template-columns: 1fr 1.7fr 1fr; align-items: center;
+    padding: 34px 28px 30px;
+  }
+  .item { display: grid; justify-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
+  .item img, .item svg.folder { width: 112px; height: 112px; }
+  .item img { filter: drop-shadow(0 8px 12px rgba(38, 43, 54, 0.16)); }
+
+  /* The arrow is Scrawl's own loop, drawn on when the window comes into view. */
+  .twirl { width: 100%; height: auto; overflow: visible; margin-top: -18px; }
+  .twirl path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 13; }
+  .twirl .lip { stroke: var(--pink-lip); }
+  .twirl .ink { stroke: var(--pink); }
+  .twirl .head { fill: var(--pink); stroke: var(--pink); stroke-width: 4; stroke-linejoin: round; }
+  .twirl .head-lip { fill: var(--pink-lip); stroke: var(--pink-lip); stroke-width: 4; stroke-linejoin: round; }
+  .twirl .heads { opacity: 0; transform-box: fill-box; transform-origin: center; }
+  .twirl.drawn .heads { animation: head-pop 420ms var(--bouncy) forwards; animation-delay: 1050ms; }
+  @keyframes head-pop { from { opacity: 0; scale: 0.2; } to { opacity: 1; scale: 1; } }
+  .folder-drop { transition: transform 360ms var(--bouncy); }
+  .disk.landed .folder-drop { animation: nudge 520ms var(--bouncy); }
+  @keyframes nudge { 30% { transform: translateY(6px) scale(1.04, 0.95); } }
+
+  .steps { list-style: none; counter-reset: step; padding: 0; margin: 34px auto 0; max-width: 33em; display: grid; gap: 16px; }
+  .steps li { counter-increment: step; display: grid; grid-template-columns: 36px 1fr; gap: 14px; align-items: start; color: var(--ink-2); font-weight: 600; }
+  .steps li::before {
+    content: counter(step); width: 32px; height: 32px; border-radius: 11px; display: grid; place-items: center;
+    background: var(--card); box-shadow: 0 4px 0 var(--card-lip); color: var(--ink); font-weight: 800; font-size: 15px;
+  }
+  .steps strong { color: var(--ink); font-weight: 800; }
+  kbd { font-family: inherit; font-weight: 800; color: var(--ink); background: var(--card); box-shadow: 0 2px 0 var(--card-lip); border-radius: 6px; padding: 0 6px; }
+
+  footer { text-align: center; color: var(--ink-2); font-size: 14px; font-weight: 600; padding: 72px 24px 48px; }
+  footer a { font-weight: 800; text-decoration-color: var(--pink); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+  /* ---------- the one page-load moment ---------- */
+  .pop { animation: pop 700ms var(--bouncy) both; animation-delay: var(--d, 0ms); }
+  @keyframes pop { from { opacity: 0; transform: translateY(12px) scale(0.6); } }
+  .rise { animation: rise 600ms var(--smooth) both; animation-delay: var(--d, 0ms); }
+  @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+
+  @media (max-width: 600px) {
+    main { padding-top: 56px; }
+    h1 { font-size: 44px; }
+    .lede { font-size: 17px; }
+    .disk-body { padding: 26px 14px 22px; }
+    .item img, .item svg.folder { width: 72px; height: 72px; }
+    .item { font-size: 12px; }
+    .twirl path { stroke-width: 11; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pop, .rise { animation: none; }
+    .twirl .heads { opacity: 1; animation: none !important; }
+    .download, .folder-drop { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <img class="icon pop" src="icon.png" alt="" width="128" height="128">
+    <h1 class="rise" style="--d:120ms">Scrawl</h1>
+    <p class="lede rise" style="--d:200ms">Hold a key, pick a pencil from the wheel, and draw on anything on your screen. Let go of the key and your Mac works like normal.</p>
+    <a class="download pop" style="--d:320ms" id="download" href="https://github.com/">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 20h14"/></svg>
+      Download for Mac
+    </a>
+    <p class="fine rise" style="--d:380ms" id="fine">For Macs with Apple silicon.</p>
+  </section>
+
+  <section class="install" aria-labelledby="install-title">
+    <h2 id="install-title">Put it in Applications</h2>
+    <p class="sub">The download opens a window like this one.</p>
+
+    <div class="disk" id="disk">
+      <div class="disk-bar" aria-hidden="true"><i></i><i></i><i></i><span>Scrawl</span></div>
+      <div class="disk-body">
+        <div class="item">
+          <img src="icon.png" alt="" width="112" height="112">
+          Scrawl
+        </div>
+
+        <svg class="twirl" id="twirl" viewBox="0 0 320 150" role="img" aria-label="Drag Scrawl to the Applications folder">
+          <path class="lip" d="M14 98 C62 98 120 90 142 62 C160 38 150 14 130 18 C106 23 108 64 142 86 C184 112 252 104 294 70" transform="translate(0 6)"/>
+          <path class="ink" d="M14 98 C62 98 120 90 142 62 C160 38 150 14 130 18 C106 23 108 64 142 86 C184 112 252 104 294 70"/>
+          <g class="heads">
+            <path class="head-lip" id="headLip" d=""/>
+            <path class="head" id="head" d=""/>
+          </g>
+        </svg>
+
+        <div class="item">
+          <svg class="folder" viewBox="0 0 120 112" aria-hidden="true">
+            <g class="folder-drop">
+              <path d="M10 30 Q10 20 20 20 H46 Q52 20 55 25 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#7F9BD1" transform="translate(0 6)"/>
+              <path d="M10 30 Q10 20 20 20 H46 Q52 20 55 25 L59 31 H100 Q110 31 110 41 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#8DA9DE"/>
+              <path d="M10 46 Q10 38 18 38 H102 Q110 38 110 46 V92 Q110 102 100 102 H20 Q10 102 10 92 Z" fill="#A9C1EC"/>
+              <g fill="none" stroke="#F8FAFC" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0.92">
+                <path d="M48 88 L60 54 L72 88"/><path d="M52.5 76 H67.5"/>
+              </g>
+            </g>
+          </svg>
+          Applications
+        </div>
+      </div>
+    </div>
+
+    <ol class="steps">
+      <li><span><strong>Drag Scrawl into Applications.</strong> Then you can eject the Scrawl disk.</span></li>
+      <li><span><strong>Right-click Scrawl and choose Open</strong> the first time. Scrawl isn’t from the App Store, so macOS asks you to confirm once.</span></li>
+      <li><span><strong>Turn on Scrawl in Accessibility.</strong> Open System Settings, then Privacy &amp; Security, then Accessibility. Scrawl needs this to notice when you hold <kbd>⌥</kbd>.</span></li>
+    </ol>
+  </section>
+</main>
+
+<footer>
+  Scrawl is free. <a id="source" href="https://github.com/">See the code on GitHub</a>.
+</footer>
+
+<script>
+  // On GitHub Pages (owner.github.io/repo/), point the links at this repo's latest release.
+  (function () {
+    const host = location.hostname;
+    if (!host.endsWith('github.io')) return;
+    const owner = host.split('.')[0];
+    const repo = location.pathname.split('/').filter(Boolean)[0] || host;
+    const base = `https://github.com/${owner}/${repo}`;
+    document.getElementById('download').href = `${base}/releases/latest/download/Scrawl.dmg`;
+    document.getElementById('source').href = base;
+  })();
+
+  // Scrawl is Mac-only: say so plainly anywhere else.
+  if (!/Macintosh|Mac OS X/.test(navigator.userAgent)) {
+    document.getElementById('fine').textContent = 'Scrawl runs on macOS. Open this page on your Mac to download it.';
+  }
+
+  // The twirl: size the dash to the path, set the arrowhead along the final tangent, draw on when seen.
+  (function () {
+    const svg = document.getElementById('twirl');
+    const ink = svg.querySelector('.ink'), lip = svg.querySelector('.lip');
+    const len = ink.getTotalLength();
+    const end = ink.getPointAtLength(len), back = ink.getPointAtLength(len - 8);
+    const a = Math.atan2(end.y - back.y, end.x - back.x);
+    const pt = (dx, dy) => `${(end.x + dx * Math.cos(a) - dy * Math.sin(a)).toFixed(1)},${(end.y + dx * Math.sin(a) + dy * Math.cos(a)).toFixed(1)}`;
+    const head = `M${pt(14, 0)} L${pt(-8, -15)} L${pt(-8, 15)} Z`;
+    document.getElementById('head').setAttribute('d', head);
+    document.getElementById('headLip').setAttribute('d', head);
+    document.getElementById('headLip').setAttribute('transform', 'translate(0 6)');
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+    for (const p of [ink, lip]) { p.style.strokeDasharray = len; p.style.strokeDashoffset = len; }
+    const disk = document.getElementById('disk');
+    const draw = () => {
+      svg.classList.add('drawn');
+      for (const p of [ink, lip]) {
+        p.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
+          { duration: 1100, easing: 'cubic-bezier(.55,.05,.3,1)', fill: 'forwards' });
+      }
+      setTimeout(() => disk.classList.add('landed'), 1150);
+    };
+    new IntersectionObserver((entries, obs) => {
+      if (entries.some((e) => e.isIntersecting)) { obs.disconnect(); setTimeout(draw, 200); }
+    }, { threshold: 0.55 }).observe(disk);
+  })();
+</script>
+</body>
+</html>

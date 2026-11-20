@@ -1,0 +1,68 @@
+/* Shared by the settings window and the drawing overlay. */
+:root {
+  --paper: #E3E8EF;      /* window background: cool sketch paper */
+  --paper-deep: #D3DAE4;
+  --card: #F8FAFC;       /* raised surfaces */
+  --card-lip: #DCE2EA;
+  --well: #EBEFF4;       /* sunken surfaces */
+  --edge: #C6CFDB;
+  --ink: #262B36;        /* graphite */
+  --ink-2: #646D80;
+  --pink: #F49CB0;       /* eraser pink, the one accent */
+  --pink-lip: #D96F8A;
+  --pink-soft: #FBE3E9;
+  --sky: #A9C1EC;        /* secondary glyph color */
+  --sky-lip: #7F9BD1;
+  --font: ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+
+  /* Springs sampled from a damped oscillator (ζ 0.5 and 0.78). */
+  --bouncy: linear(0, 0.055, 0.192, 0.373, 0.565, 0.745, 0.898, 1.016, 1.098, 1.144, 1.162, 1.158, 1.138, 1.11, 1.079, 1.049, 1.023, 1.002, 0.987, 0.978, 0.974, 0.974, 0.976, 0.981, 0.986, 0.991, 0.995, 0.999, 1);
+  --smooth: linear(0, 0.067, 0.217, 0.391, 0.558, 0.7, 0.811, 0.893, 0.95, 0.985, 1.006, 1.016, 1.02, 1.019, 1.016, 1.013, 1.01, 1.007, 1.004, 1.003, 1.001, 1, 1);
+}
+
+/* ---------- the wheel ---------- */
+.wheel { overflow: visible; display: block; }
+.wheel .slice, .wheel .wheel-body { transform-box: view-box; transform-origin: var(--cx) var(--cy); }
+.wheel .face { transition: transform 260ms var(--bouncy); }
+.wheel .top { fill: var(--card); transition: fill 140ms ease; }
+.wheel .edge { fill: var(--edge); transition: fill 140ms ease; }
+.wheel .ico { transform-box: fill-box; transform-origin: center; transition: transform 300ms var(--bouncy); color: var(--ink); }
+.wheel .slice.hot .face { transform: translateY(var(--press)); }
+.wheel .slice.hot .top { fill: var(--pink); }
+.wheel .slice.hot .edge { fill: var(--pink-lip); }
+.wheel .slice.hot .ico { transform: scale(1.18); }
+.wheel .act { fill: var(--pink-lip); transition: fill 140ms ease; }
+.wheel .slice.hot .act { fill: var(--ink); }
+
+/* The middle is a button too (show/hide): it presses in and turns pink like a slice. */
+.wheel .hub-face { transition: transform 260ms var(--bouncy); }
+.wheel .hub-top { fill: var(--card); transition: fill 140ms ease; }
+.wheel .hub-edge { fill: var(--edge); transition: fill 140ms ease; }
+.wheel .hub.hot .hub-face { transform: translateY(var(--press)); }
+.wheel .hub.hot .hub-top { fill: var(--pink); }
+.wheel .hub.hot .hub-edge { fill: var(--pink-lip); }
+.wheel .hub-ico {
+  transform-box: fill-box; transform-origin: center; color: var(--ink);
+  opacity: 0; transform: scale(0.3) rotate(-25deg);
+  transition: opacity 120ms ease, transform 320ms var(--bouncy);
+}
+.wheel .hub-ico.on { opacity: 1; transform: none; }
+.wheel .hub-ico.on.dim { opacity: 0.32; }
+
+/* Opening: the wheel springs out of the cursor, slices land one after another. */
+.wheel.enter .wheel-body { animation: wheel-in 380ms var(--bouncy) both; }
+.wheel.enter .slice { animation: slice-in 340ms var(--bouncy) both; animation-delay: calc(var(--i) * 28ms); }
+.wheel.enter .hub { animation: hub-in 300ms var(--bouncy) both; transform-box: view-box; transform-origin: var(--cx) var(--cy); }
+@keyframes wheel-in { from { transform: scale(0.35) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes slice-in { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes hub-in { from { transform: scale(0.2); } to { transform: none; } }
+
+/* Closing: shrink back into the cursor. The picked slice holds its color on the way out. */
+.wheel.leave .wheel-body { animation: wheel-out 170ms cubic-bezier(.5, 0, .9, .4) both; }
+.wheel.leave .hub { animation: wheel-out 150ms cubic-bezier(.5, 0, .9, .4) both; transform-box: view-box; transform-origin: var(--cx) var(--cy); }
+.wheel.leave .slice.picked .face { transform: translateY(var(--press)) scale(1.06); transform-box: view-box; transform-origin: var(--cx) var(--cy); }
+@keyframes wheel-out { to { transform: scale(0.4) rotate(18deg); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel *, .wheel.enter *, .wheel.leave * { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+}

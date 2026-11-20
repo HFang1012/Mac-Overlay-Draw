@@ -1,0 +1,13 @@
+# Dependencies: reinstalled with `npm install`
+node_modules/
+
+# Built app and disk image: made with `npm run release`.
+# Upload build/Scrawl.dmg to a GitHub release instead of committing it (it's over GitHub's 100 MB file limit).
+build/
+*.dmg
+
+# macOS clutter
+.DS_Store
+
+# Local editor/tool settings
+.claude/
