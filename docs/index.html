@@ -193,21 +193,41 @@
 </footer>
 
 <script>
-  // On GitHub Pages (owner.github.io/repo/), point the links at this repo's latest release.
+  const isMac = /Macintosh|Mac OS X/.test(navigator.userAgent);
+  const fine = document.getElementById('fine');
+  const button = document.getElementById('download');
+
+  // Scrawl is Mac-only: say so plainly anywhere else.
+  if (!isMac) fine.textContent = 'Scrawl runs on macOS. Open this page on your Mac to download it.';
+
+  // On GitHub Pages (owner.github.io/repo/), ask GitHub for this repo's latest release and link
+  // straight to the .dmg attached to it, whatever it's called.
   (function () {
     const host = location.hostname;
     if (!host.endsWith('github.io')) return;
     const owner = host.split('.')[0];
     const repo = location.pathname.split('/').filter(Boolean)[0] || host;
     const base = `https://github.com/${owner}/${repo}`;
-    document.getElementById('download').href = `${base}/releases/latest/download/Scrawl.dmg`;
     document.getElementById('source').href = base;
-  })();
+    button.href = `${base}/releases/latest`; // until we hear back: the release page itself
 
-  // Scrawl is Mac-only: say so plainly anywhere else.
-  if (!/Macintosh|Mac OS X/.test(navigator.userAgent)) {
-    document.getElementById('fine').textContent = 'Scrawl runs on macOS. Open this page on your Mac to download it.';
-  }
+    fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((release) => {
+        const dmg = release?.assets?.find((a) => a.name.toLowerCase().endsWith('.dmg'));
+        if (dmg) {
+          button.href = dmg.browser_download_url;
+          if (isMac) fine.textContent = `Version ${release.tag_name.replace(/^v/, '')}, for Macs with Apple silicon.`;
+        } else if (release) {
+          button.href = release.html_url;
+          fine.textContent = 'The newest release has no Mac download attached yet.';
+        } else {
+          button.href = `${base}/releases`;
+          fine.textContent = 'No download yet. The first release is on its way.';
+        }
+      })
+      .catch(() => {}); // offline or rate-limited: the release page link still works
+  })();
 
   // The twirl: size the dash to the path, set the arrowhead along the final tangent, draw on when seen.
   (function () {
