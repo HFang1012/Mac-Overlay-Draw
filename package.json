@@ -1,6 +1,6 @@
 {
   "name": "scrawl",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Hold a key, pick a tool from a wheel, draw on your screen.",
   "main": "main.js",
   "scripts": {
