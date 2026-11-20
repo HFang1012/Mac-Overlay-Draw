@@ -1,0 +1,61 @@
+# Builds Scrawl and publishes a GitHub release whenever a version tag (v1.2.3) is pushed.
+# The website's download button always points at the newest release, so it updates by itself.
+#
+# Release a new version with:  npm run ship        (1.0.1 → 1.0.2)
+#                         or:  npm run ship:minor  (1.0.2 → 1.1.0)
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: # or run it by hand from the Actions tab, for an existing tag
+    inputs:
+      tag:
+        description: 'Tag to build, for example v1.2.3'
+        required: true
+
+permissions:
+  contents: write # to create the release and upload Scrawl.dmg
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15 # Apple silicon, matching the Macs Scrawl is built for
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0 # full history and tags, so the build can read its version from the tag
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build Scrawl.app and Scrawl.dmg
+        run: npm run release
+
+      - name: Check the version matches the tag
+        run: |
+          built=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" build/Scrawl.app/Contents/Info.plist)
+          echo "Built version $built for tag $TAG"
+          [ "v$built" = "$TAG" ] || { echo "::error::Built $built but the tag is $TAG"; exit 1; }
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # The release already exists (made by hand, or a re-run): replace its download.
+            gh release upload "$TAG" build/Scrawl.dmg --clobber
+          else
+            gh release create "$TAG" build/Scrawl.dmg --title "Scrawl ${TAG#v}" --generate-notes --latest
+          fi

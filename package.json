@@ -1,13 +1,16 @@
 {
   "name": "scrawl",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Hold a key, pick a tool from a wheel, draw on your screen.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "package": "node scripts/package.js",
     "dmg": "sh scripts/dmg.sh",
-    "release": "npm run package && npm run dmg"
+    "release": "npm run package && npm run dmg",
+    "ship": "npm version patch -m \"Release %s\" && git push --follow-tags",
+    "ship:minor": "npm version minor -m \"Release %s\" && git push --follow-tags",
+    "ship:major": "npm version major -m \"Release %s\" && git push --follow-tags"
   },
   "dependencies": {
     "uiohook-napi": "^1.5.5"
