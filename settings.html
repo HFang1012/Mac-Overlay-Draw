@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="scrawl">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
@@ -12,6 +12,7 @@
     background: var(--paper); color: var(--ink); font-family: var(--font);
     font-size: 14px; line-height: 1.4; -webkit-font-smoothing: antialiased;
     user-select: none; overflow: hidden; -webkit-app-region: drag; cursor: default;
+    transition: background 320ms ease, color 320ms ease;
   }
   button, .tile, .swatch, .switch { -webkit-app-region: no-drag; font: inherit; color: inherit; }
   button { border: 0; background: none; padding: 0; cursor: pointer; }
@@ -100,7 +101,7 @@
   .power-btn:focus-visible { box-shadow: 0 4px 0 var(--card-lip), 0 0 0 3px var(--accent-soft); }
   /* While off, the controls that only matter when Scrawl is listening step back a little. */
   .keyrow, .caption, .card { transition: opacity 260ms ease, filter 260ms ease; }
-  .page.off .keyrow, .page.off .caption, .page.off .card { opacity: 0.6; filter: saturate(0.5); }
+  .page.off .keyrow, .page.off .caption, .page.off .card, .page.off .demo-btn { opacity: 0.6; filter: saturate(0.5); }
   .status { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 12px; font-weight: 600; line-height: 1.4; }
   .status .dot { flex: none; }
   .status .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--edge); transition: background 300ms ease; position: relative; }
@@ -211,6 +212,8 @@
   .page[hidden] { display: none; }
 
   /* ---------- tool switcher: top right, clear of the traffic lights ---------- */
+  /* It sits last in the page: Electron applies drag and no-drag areas in page order, so anything
+     earlier would be painted over by the draggable page underneath and stop taking clicks. */
   .switcher { position: fixed; top: 9px; right: 16px; z-index: 10; -webkit-app-region: no-drag; }
   .switch-btn {
     height: 30px; padding: 0 10px 0 9px; border-radius: 15px; display: inline-flex; align-items: center; gap: 7px;
@@ -312,21 +315,105 @@
   .reset.show { opacity: 1; pointer-events: auto; }
   .reset:hover { text-decoration: underline; text-underline-offset: 2px; }
 
+  /* ---------- "Show me how" and the demo sheet ---------- */
+  .demo-btn {
+    margin-top: 16px; height: 32px; padding: 0 14px 0 12px; border-radius: 16px; display: inline-flex; align-items: center; gap: 7px;
+    font-size: 13px; font-weight: 800; background: var(--card); box-shadow: 0 4px 0 var(--accent); margin-bottom: 4px;
+    transition: transform 200ms var(--bouncy), box-shadow 200ms var(--bouncy);
+  }
+  .demo-btn svg { color: var(--accent-lip); }
+  .demo-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 0 var(--accent); }
+  .demo-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--accent-lip); }
+  .demo-btn:focus-visible { box-shadow: 0 4px 0 var(--accent), 0 0 0 3px var(--accent-soft); border-radius: 16px; }
+  .keyrow { margin-top: 20px; }
+
+  .demo {
+    position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; -webkit-app-region: no-drag;
+    background: color-mix(in srgb, var(--ink) 30%, transparent); opacity: 0; pointer-events: none; transition: opacity 200ms ease;
+  }
+  .demo.open { opacity: 1; pointer-events: auto; }
+  .demo-sheet {
+    width: 620px; padding: 20px 24px 20px; border-radius: 30px; background: var(--card); cursor: default;
+    box-shadow: 0 8px 0 var(--card-lip), 0 30px 70px rgba(20, 18, 28, 0.25);
+    transform: translateY(18px) scale(0.92); transition: transform 460ms var(--bouncy);
+  }
+  .demo.open .demo-sheet { transform: none; }
+  .demo-head { display: flex; align-items: center; justify-content: space-between; }
+  .demo-head h2 { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; margin: 0; }
+  .demo-head h2 .g { display: inline-flex; }
+  .demo-close { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--well); color: var(--ink-2); transition: transform 260ms var(--bouncy), background 140ms ease; }
+  .demo-close:hover { background: var(--paper-deep); transform: rotate(90deg); }
+  .demo-close:active { transform: rotate(90deg) scale(0.86); }
+
+  .stage { position: relative; height: 290px; margin-top: 14px; border-radius: 20px; overflow: hidden; isolation: isolate; box-shadow: 0 5px 0 var(--card-lip); }
+  .stage .bg { position: absolute; inset: -12px; transition: filter 600ms var(--smooth); background: var(--stage-bg); }
+  [data-theme="scrawl"] .stage { --stage-bg: linear-gradient(135deg, #CBD5E3, #DCE4EE 50%, #D7D2E4); --win: #FFFFFF; --bar: #E7ECF3; --line: #D5DCE6; --dark: #2C3240; }
+  [data-theme="away"] .stage { --stage-bg: linear-gradient(135deg, #D9CFC1, #E9DCCB 45%, #CFC6DA); --win: #FFFDF9; --bar: #EEE6DA; --line: #D9D0C3; --dark: #3B3646; }
+  .stage .win { position: absolute; border-radius: 10px; background: var(--win); box-shadow: 0 8px 18px rgba(20, 18, 28, 0.12); overflow: hidden; }
+  .stage .win::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 15px; background: var(--bar); }
+  .stage .win i { position: absolute; height: 8px; border-radius: 4px; background: var(--line); }
+  .stage .v1 { left: 7%; top: 12%; width: 46%; height: 66%; }
+  .stage .v2 { left: 38%; top: 30%; width: 50%; height: 58%; }
+  .stage .v3 { left: 72%; top: 9%; width: 22%; height: 32%; background: var(--dark); }
+  .stage .v3::before { background: color-mix(in srgb, var(--dark) 80%, white); }
+  .stage .ink { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+  .stage .ink path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .stage .dwheel { position: absolute; left: 0; top: 0; }
+  .stage .dwheel .wheel { filter: drop-shadow(0 6px 12px rgba(20, 18, 28, 0.2)); }
+  .stage .cursor { position: absolute; left: 0; top: 0; z-index: 5; will-change: transform; }
+  .stage .cursor .arrow { display: block; transition: opacity 400ms ease, scale 400ms var(--bouncy); }
+  .stage .cursor .dchip {
+    position: absolute; left: 13px; top: 16px; width: 20px; height: 20px; border-radius: 7px; display: grid; place-items: center;
+    background: var(--accent); box-shadow: 0 2px 0 var(--accent-lip); color: var(--ink);
+    opacity: 0; scale: 0.3; rotate: -20deg; transition: opacity 160ms ease, scale 380ms var(--bouncy), rotate 380ms var(--bouncy);
+  }
+  .stage .cursor.holding .dchip { opacity: 1; scale: 1; rotate: 0deg; }
+  .stage .cursor.gone .arrow { opacity: 0; scale: 0.5; }
+  .stage .dtint { position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 45%, rgba(43, 39, 51, 0.12), rgba(43, 39, 51, 0.36)); opacity: 0; transition: opacity 600ms ease; }
+  .stage .dblob { position: absolute; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(closest-side, var(--c), transparent); opacity: 0; filter: blur(16px); transition: opacity 800ms ease; animation: mdrift var(--t) ease-in-out infinite alternate; }
+  .stage .dblob:nth-of-type(1) { left: -80px; top: -110px; --t: 9s; }
+  .stage .dblob:nth-of-type(2) { right: -90px; top: -50px; --t: 11s; }
+  .stage .dblob:nth-of-type(3) { left: 150px; bottom: -190px; --t: 10s; }
+  .stage .dnote {
+    position: absolute; left: 50%; top: 50%; width: 280px; padding: 16px 18px 14px; border-radius: 18px; text-align: center;
+    background: var(--card); box-shadow: 0 5px 0 var(--card-lip), 0 14px 30px rgba(22, 19, 28, 0.22);
+    opacity: 0; transform: translate(-50%, -42%) scale(0.8); transition: opacity 200ms ease, transform 600ms var(--bouncy);
+  }
+  .stage .dnote .mcup { display: flex; justify-content: center; margin-bottom: 6px; }
+  .stage .dnote b { display: block; font-size: 15px; line-height: 1.25; overflow-wrap: anywhere; }
+  .stage .dnote small[hidden] { display: none; }
+  .stage .dnote small { display: inline-block; margin-top: 8px; padding: 2px 9px; border-radius: 999px; background: var(--well); color: var(--ink-2); font-size: 11px; font-weight: 700; }
+  .stage.away .bg { filter: blur(7px); }
+  .stage.away .dtint { opacity: 1; }
+  .stage.away .dblob { opacity: 0.6; }
+  .stage.away .dnote { opacity: 1; transform: translate(-50%, -50%); transition-delay: 120ms; }
+
+  .demo-keys { display: flex; justify-content: center; align-items: flex-end; gap: 14px; margin-top: 18px; min-height: 76px; }
+  .dkey { display: grid; justify-items: center; gap: 6px; }
+  .dkey .cap {
+    min-width: 50px; height: 46px; padding: 0 12px; border-radius: 13px; display: grid; place-items: center;
+    background: var(--well); box-shadow: 0 5px 0 var(--accent); font-size: 21px; font-weight: 800;
+    transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  }
+  .dkey .cap.word { font-size: 14px; }
+  .dkey .cap.down { transform: translateY(4px); box-shadow: 0 1px 0 var(--accent-lip); background: var(--accent-soft); }
+  .dkey small { font-size: 11px; font-weight: 700; color: var(--ink-2); min-height: 15px; }
+  .demo-step { text-align: center; font-size: 16px; font-weight: 800; margin: 12px 0 0; min-height: 23px; }
+  .demo-step span { display: inline-block; animation: step-in 420ms var(--bouncy); }
+  @keyframes step-in { from { opacity: 0; transform: translateY(8px); } }
+  .demo-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+  .dots { display: flex; gap: 6px; }
+  .dots span { width: 8px; height: 8px; border-radius: 4px; background: var(--edge); transition: width 320ms var(--bouncy), background 200ms ease; }
+  .dots span.on { width: 22px; background: var(--accent-lip); }
+  .dots span.done { background: var(--accent); }
+  .demo-foot .pill { margin: 0 0 4px; }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
   }
 </style>
 </head>
 <body>
-<div class="switcher" id="switcher">
-  <button class="switch-btn" id="switchBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="switchMenu">
-    <span class="sw-glyph" id="swGlyph"></span><span class="sw-name" id="swName">Scrawl</span>
-    <svg class="chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.8l3 3 3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  </button>
-  <div class="switch-menu" id="switchMenu" role="menu" aria-label="Pane tools">
-    <p class="menu-title">Pane tools</p>
-  </div>
-</div>
 <div class="page" id="page" data-tool="scrawl">
   <section>
     <div class="brand rise" style="--d:0ms">
@@ -335,7 +422,8 @@
       <span class="version"></span>
     </div>
     <h1 class="rise" style="--d:60ms">Hold a key.<br>Draw on anything.</h1>
-    <p class="lede rise" style="--d:120ms">Hold the wheel key and a wheel opens at your cursor. Slide toward a tool and let go to pick it, or let go in the middle to cancel. Point at the pencil to pick a color too. With a tool in hand, drag or hold the draw key to draw, and use ⌘Z or ⌘⇧Z to undo or redo. Pick the tool again, press Esc, or right-click to put it down.</p>
+    <p class="lede rise" style="--d:120ms" >Hold the wheel key, slide to a tool and let go. Drag to draw. Press Esc when you’re done.</p>
+    <button class="demo-btn rise" style="--d:150ms" data-demo="scrawl"><svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.2v7.6L9.8 6z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>Show me how</button>
 
     <div class="keyrow rise" style="--d:160ms">
       <div class="keyslot">
@@ -353,12 +441,12 @@
         <span class="keylabel">Draw key</span>
       </div>
     </div>
-    <p class="caption rise" style="--d:200ms" id="keycaption">Click a key to choose a different one.</p>
+    <p class="caption rise" style="--d:200ms" id="keycaption">Click a key to change it.</p>
 
     <div class="collapse" id="access"><div>
       <div class="callout chunky">
         <h3>Allow Pane to hear your keys</h3>
-        <p>Turn on Pane in Privacy &amp; Security › Accessibility. If it already looks on, remove it with the minus button and add it again. macOS treats each new build as a different app. This box disappears once it works.</p>
+        <p>Turn on Pane in Privacy &amp; Security › Accessibility. Already on? Remove it and add it again.</p>
         <button class="pill" id="accessBtn">Open Accessibility settings</button>
       </div>
     </div></div>
@@ -378,7 +466,7 @@
     <div class="head">
       <div>
         <h2>Wheel tools</h2>
-        <p id="toolsHint">Click a tool to take it off the wheel, or drag it to a new spot. Point at the pencil on the wheel to pick a color.</p>
+        <p id="toolsHint">Click to remove a tool. Drag to reorder.</p>
       </div>
       <div class="preview" id="preview"></div>
     </div>
@@ -386,23 +474,23 @@
 
     <div class="rows">
       <div class="row rise" style="--d:300ms">
-        <div><h3>Pencil color</h3><p>The color of new lines.</p></div>
+        <div><h3>Pencil color</h3><p>Color of new lines.</p></div>
         <div class="swatches" id="swatches" role="radiogroup" aria-label="Pencil color"></div>
       </div>
       <div class="row rise" style="--d:340ms">
-        <div><h3>Pencil size</h3><p>How thick new lines are.</p></div>
+        <div><h3>Pencil size</h3><p>Thickness of new lines.</p></div>
         <div class="stepper" data-key="pencilSize" data-values="2,3,4,6,8,12,16" data-unit=" px"></div>
       </div>
       <div class="row rise" style="--d:380ms">
-        <div><h3>Eraser size</h3><p>How wide the eraser rubs.</p></div>
+        <div><h3>Eraser size</h3><p>How wide it erases.</p></div>
         <div class="stepper" data-key="eraserSize" data-values="12,20,28,40,56,80" data-unit=" px"></div>
       </div>
       <div class="row rise" style="--d:420ms">
-        <div><h3>Wheel size</h3><p>How big the wheel opens around your cursor.</p></div>
+        <div><h3>Wheel size</h3><p>How big the wheel opens.</p></div>
         <div class="stepper" data-key="wheelSize" data-values="60,76,96" data-labels="Small,Medium,Large"></div>
       </div>
       <div class="row rise" style="--d:460ms">
-        <div><h3>Open at login</h3><p>Have Pane ready when your Mac starts.</p></div>
+        <div><h3>Open at login</h3><p>Start Pane with your Mac.</p></div>
         <button class="switch login" role="switch" aria-checked="false" aria-label="Open at login"></button>
       </div>
     </div>
@@ -417,7 +505,8 @@
       <span class="version"></span>
     </div>
     <h1 class="rise" style="--d:60ms">Step away.<br>Leave a note.</h1>
-    <p class="lede rise" style="--d:120ms">Press the away keys and every screen blurs behind soft, drifting color. Your pointer hides and your note sits in the middle, so anyone walking by knows you’ll be right back. Press the same keys when you return.</p>
+    <p class="lede rise" style="--d:120ms" >Press the away keys to blur your screen and hide the pointer. Press them again to come back.</p>
+    <button class="demo-btn rise" style="--d:150ms" data-demo="away"><svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.2v7.6L9.8 6z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>Show me how</button>
 
     <div class="keyrow rise" style="--d:160ms">
       <div class="keyslot">
@@ -428,7 +517,7 @@
         <span class="keylabel">Away keys</span>
       </div>
     </div>
-    <p class="caption rise" style="--d:200ms" id="awayCaption">Click the keys to choose different ones.</p>
+    <p class="caption rise" style="--d:200ms" id="awayCaption">Click the keys to change them.</p>
 
     <div class="power rise" style="--d:240ms">
       <button class="power-btn" id="awayPower" aria-pressed="true">
@@ -445,7 +534,7 @@
     <div class="head solo">
       <div>
         <h2>Away screen</h2>
-        <p>What people see while you’re gone. Try it to see it full size.</p>
+        <p>What people see while you’re gone.</p>
       </div>
     </div>
     <div class="screen-wrap">
@@ -467,35 +556,75 @@
 
     <div class="rows">
       <div class="row stack rise" style="--d:300ms">
-        <div><h3>Message <button class="reset" id="resetMsg">Use the default</button></h3><p>Shown in the middle of every screen.</p></div>
+        <div><h3>Message <button class="reset" id="resetMsg">Use the default</button></h3><p>Shown on every screen.</p></div>
         <div class="field">
           <textarea id="message" rows="2" maxlength="120" spellcheck="true" aria-label="Away message"></textarea>
           <span class="count" id="msgCount"></span>
         </div>
       </div>
       <div class="row rise" style="--d:340ms">
-        <div><h3>Colors</h3><p>The soft blobs that drift behind the blur.</p></div>
+        <div><h3>Colors</h3><p>The soft glow behind the blur.</p></div>
         <div class="swatches" id="moods" role="radiogroup" aria-label="Away colors"></div>
       </div>
       <div class="row rise" style="--d:380ms">
-        <div><h3>Show when I left</h3><p>A small “Away since” under your note.</p></div>
+        <div><h3>Show when I left</h3><p>Adds “Away since 3:42 PM”.</p></div>
         <button class="switch" id="showTime" role="switch" aria-checked="true" aria-label="Show when I left"></button>
       </div>
       <div class="row rise" style="--d:420ms">
-        <div><h3>Hide the pointer</h3><p>Tucks the mouse away until you’re back.</p></div>
+        <div><h3>Hide the pointer</h3><p>Hides the mouse while you’re away.</p></div>
         <button class="switch" id="hidePointer" role="switch" aria-checked="true" aria-label="Hide the pointer"></button>
       </div>
       <div class="row rise" style="--d:460ms">
-        <div><h3>Open at login</h3><p>Have Pane ready when your Mac starts.</p></div>
+        <div><h3>Open at login</h3><p>Start Pane with your Mac.</p></div>
         <button class="switch login" role="switch" aria-checked="false" aria-label="Open at login"></button>
       </div>
     </div>
   </section>
+</div>
+<div class="demo" id="demo" role="dialog" aria-modal="true" aria-labelledby="demoTitle">
+  <div class="demo-sheet">
+    <div class="demo-head">
+      <h2 id="demoTitle"><span class="g" id="demoGlyph"></span><span id="demoName">How it works</span></h2>
+      <button class="demo-close" id="demoClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="stage" id="stage" aria-hidden="true">
+      <div class="bg">
+        <div class="win v1"><i style="left:8%;top:28%;width:62%"></i><i style="left:8%;top:41%;width:78%"></i><i style="left:8%;top:54%;width:46%"></i></div>
+        <div class="win v2"><i style="left:8%;top:30%;width:70%"></i><i style="left:8%;top:44%;width:52%"></i><i style="left:8%;top:58%;width:64%"></i></div>
+        <div class="win v3"></div>
+      </div>
+      <svg class="ink" id="stageInk"><path id="stagePath"/></svg>
+      <div class="dtint"></div>
+      <div class="dblob"></div><div class="dblob"></div><div class="dblob"></div>
+      <div class="dnote"><span class="mcup" id="stageCup"></span><b id="stageMsg"></b><small id="stageSince"></small></div>
+      <div class="dwheel" id="stageWheel"></div>
+      <div class="cursor" id="stageCursor">
+        <svg class="arrow" width="17" height="24" viewBox="0 0 17 24"><path d="M1.5 1.5v17.2l4.3-4.1 3 6.9 3.1-1.3-3-6.8h6z" fill="#14161C" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        <span class="dchip" id="stageChip"></span>
+      </div>
+    </div>
+    <div class="demo-keys" id="demoKeys"></div>
+    <p class="demo-step" id="demoStep" aria-live="polite"></p>
+    <div class="demo-foot">
+      <div class="dots" id="demoDots"></div>
+      <button class="pill" id="demoReplay">Replay</button>
+    </div>
+  </div>
+</div>
+<div class="switcher" id="switcher">
+  <button class="switch-btn" id="switchBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="switchMenu">
+    <span class="sw-glyph" id="swGlyph"></span><span class="sw-name" id="swName">Scrawl</span>
+    <svg class="chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.8l3 3 3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="switch-menu" id="switchMenu" role="menu" aria-label="Pane tools">
+    <p class="menu-title">Pane tools</p>
+  </div>
 </div>
 <script src="wheel.js"></script>
 <script src="tools.js"></script>
 <script src="settings.js"></script>
 <script src="away-settings.js"></script>
 <script src="switcher.js"></script>
+<script src="demo.js"></script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 
 // ---------- keys: a shortcut like ⌃⌘A, chosen by pressing it ----------
 const awayWell = document.getElementById('awayWell');
-const AWAY_CAPTION = 'Click the keys to choose different ones.';
+const AWAY_CAPTION = 'Click the keys to change them.';
 let awayListening = false;
 
 const MOD_ORDER = [ // macOS writes modifiers in this order
@@ -52,7 +52,7 @@ awayWell.addEventListener('click', () => {
   awayWell.classList.add('listening');
   scrawl.send('away:bind', true);
   awayWell.querySelector('.keys').innerHTML = '<span class="prompt pop">Press keys</span>';
-  setAwayCaption('Hold ⌘, ⌃ or ⌥ and press a key. Esc cancels.');
+  setAwayCaption('Hold ⌘, ⌃ or ⌥ and press a key.');
 });
 
 addEventListener('keydown', async (e) => {
@@ -67,7 +67,7 @@ addEventListener('keydown', async (e) => {
     return;
   }
   if (!mods.some((m) => m.prop !== 'shiftKey')) {
-    setAwayCaption('Add ⌘, ⌃ or ⌥, so typing never sets it off.', true);
+    setAwayCaption('Add ⌘, ⌃ or ⌥ too.', true);
     shake(awayWell);
     return;
   }
@@ -111,8 +111,8 @@ function updateAwayStatus() {
   const ready = on && status.awayKey;
   document.getElementById('awayStatus').classList.toggle('ready', ready);
   swapText(document.getElementById('awayStatusText'), !on
-    ? `Off. ${keys} goes to your apps as usual.`
-    : ready ? `On. Press ${keys} anywhere to step away.` : `Another app is using ${keys}. Click the keys to pick others.`);
+    ? 'Off.'
+    : ready ? `On. Press ${keys} to step away.` : `${keys} is taken by another app. Pick other keys.`);
 }
 
 // ---------- the little screen ----------

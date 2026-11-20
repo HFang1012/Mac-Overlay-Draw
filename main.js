@@ -467,6 +467,12 @@ function showAway(preview = false) {
   const a = { since: Date.now(), preview, wins: [], closing: false, front: null };
   away = a;
   if (!preview) frontApp().then((id) => { if (id && id !== 'com.pane.app' && !id.startsWith('com.github.Electron')) a.front = id; });
+  // Bringing Pane forward (to hide the pointer) and closing Away later both make macOS look for another
+  // Pane window to focus. If the settings window is open on a different Space, macOS would jump there.
+  // So tuck it away first; it opens again from the Dock or the Pane menu.
+  if (!preview && settingsWin?.isVisible() && !settingsWin.isFocused()) settingsWin.hide();
+  // Only the app in front can hide the pointer, so Away comes forward only when it needs to.
+  const takeFocus = preview || settings.away.hidePointer;
 
   for (const d of screen.getAllDisplays()) {
     const w = new BrowserWindow({
@@ -498,8 +504,8 @@ function showAway(preview = false) {
       if (away !== a || a.closing) return;
       w.setBounds(d.bounds);
       w.setOpacity(0);
-      w.show();
-      if (primary) { w.focus(); app.focus({ steal: true }); }
+      if (primary && takeFocus) { w.show(); w.focus(); app.focus({ steal: true }); }
+      else w.showInactive();
       fadeWindow(w, 0, 1, 360);
     });
     a.wins.push(w);
@@ -511,18 +517,17 @@ function hideAway() {
   const a = away;
   if (!a || a.closing) return;
   a.closing = true;
-  for (const w of a.wins) {
-    if (w.isDestroyed()) continue;
-    w.webContents.send('away:leave');
-    fadeWindow(w, w.getOpacity(), 0, 260, () => { if (!w.isDestroyed()) w.destroy(); });
-  }
-  setTimeout(() => {
-    if (away === a) away = null;
-    buildMenu();
-    // Hand the keyboard back: to the settings window after a preview, otherwise to the app you were in.
-    if (a.preview) { settingsWin?.show(); settingsWin?.focus(); }
-    else if (a.front) execFile('osascript', ['-e', `tell application id "${a.front.replace(/"/g, '')}" to activate`], () => {});
-  }, 280);
+  for (const w of a.wins) if (!w.isDestroyed()) w.webContents.send('away:leave');
+  // Hand the keyboard back *before* the Away windows close: to the app you were in, or to the settings
+  // window after a preview (it's on the Space you're looking at). Otherwise macOS picks a Pane window
+  // to focus by itself, and can jump to another Space to reach it.
+  const close = () => {
+    for (const w of a.wins) if (!w.isDestroyed()) fadeWindow(w, w.getOpacity(), 0, 260, () => { if (!w.isDestroyed()) w.destroy(); });
+    setTimeout(() => { if (away === a) away = null; buildMenu(); }, 280);
+  };
+  if (a.preview) { settingsWin?.show(); settingsWin?.focus(); close(); }
+  else if (a.front) execFile('osascript', ['-e', `tell application id "${a.front.replace(/"/g, '')}" to activate`], () => setTimeout(close, 60));
+  else close();
 }
 
 ipcMain.handle('away:init', () => ({
@@ -546,7 +551,7 @@ ipcMain.handle('away:keys', (_e, keys) => {
   registerAwayKey();
   let error = null;
   if (settings.away.enabled && !awayKeyOn) {
-    error = `Another app is already using ${keys.symbols.join('')}. Pick different keys.`;
+    error = `${keys.symbols.join('')} is taken by another app. Pick other keys.`;
     settings = { ...settings, away: { ...settings.away, keys: before } };
     registerAwayKey();
   }
@@ -565,7 +570,7 @@ function createSettings() {
     maximizable: false,
     fullscreenable: false,
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#ECE6DD',
+    backgroundColor: '#E3E8EF',
     show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
@@ -618,6 +623,8 @@ ipcMain.handle('bind:start', (_e, which) => {
   return true;
 });
 // The settings page measures itself, and the fixed-width window hugs that height.
+// The window's own color (seen for a moment while it resizes) follows the tool's theme.
+ipcMain.on('window:bg', (_e, color) => { if (/^#[0-9a-f]{6}$/i.test(color)) settingsWin?.setBackgroundColor(color); });
 ipcMain.on('window:fit', (_e, h, animate) => {
   if (settingsWin && h > 300 && h < 1400) settingsWin.setContentSize(900, Math.ceil(h), !!animate && settingsWin.isVisible());
 });

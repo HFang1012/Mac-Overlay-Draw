@@ -42,7 +42,7 @@
   const colorIndex = (hex) => Math.max(0, COLORS.findIndex((c) => c.hex.toLowerCase() === String(hex).toLowerCase()));
 
   // Chunky, Lull-style glyphs for the settings tiles: flat shapes with a darker lip underneath.
-  const G = { ink: '#2B2733', inkLip: '#16131C', accent: '#B9A5F4', accentLip: '#8E76DC', peach: '#FFC593', peachLip: '#E39C60', paper: '#FFF9F0', paperLip: '#DCCDB8' };
+  const G = { ink: '#262B36', inkLip: '#0F1218', pink: '#F49CB0', pinkLip: '#D96F8A', sky: '#A9C1EC', skyLip: '#7F9BD1', paper: '#F3EEE6', paperLip: '#D8CFC2' };
   function chunky(shape, fill, lip, dy = 3) {
     return `<g transform="translate(0 ${dy})" fill="${lip}">${shape}</g><g fill="${fill}">${shape}</g>`;
   }
@@ -56,29 +56,29 @@
       const cap = '<rect x="5" y="17" width="9" height="11" rx="4"/>';
       const tip = '<path d="M38 17 L50 22.5 L38 28 Z"/>';
       const lead = '<path d="M46 20.7 L50 22.5 L46 24.3 Z"/>';
-      return `<g transform="rotate(-28 28 22)">${chunky(body, G.peach, G.peachLip)}${chunky(cap, G.accent, G.accentLip)}${chunky(tip, G.paper, G.paperLip)}<g fill="${G.ink}">${lead}</g></g>`;
+      return `<g transform="rotate(-28 28 22)">${chunky(body, G.sky, G.skyLip)}${chunky(cap, G.pink, G.pinkLip)}${chunky(tip, G.paper, G.paperLip)}<g fill="${G.ink}">${lead}</g></g>`;
     },
     eraser: () => {
-      const rubber = '<rect x="8" y="14" width="24" height="17" rx="5"/>';
+      const pinkPart = '<rect x="8" y="14" width="24" height="17" rx="5"/>';
       const sleeve = '<rect x="26" y="14" width="22" height="17" rx="4"/>';
-      return `<g transform="rotate(-18 28 22)">${chunky(rubber, G.accent, G.accentLip)}${chunky(sleeve, G.peach, G.peachLip)}</g>`;
+      return `<g transform="rotate(-18 28 22)">${chunky(pinkPart, G.pink, G.pinkLip)}${chunky(sleeve, G.sky, G.skyLip)}</g>`;
     },
     toggle: () => {
       const eye = '<path d="M6 22 C14 9, 42 9, 50 22 C42 35, 14 35, 6 22 Z"/>';
       const iris = '<circle cx="28" cy="22" r="7"/>';
       const slash = '<rect x="26" y="2" width="5" height="40" rx="2.5" transform="rotate(-42 28 22)"/>';
-      return chunky(eye, G.peach, G.peachLip) + chunky(iris, G.ink, G.inkLip, 2) + chunky(slash, G.accent, G.accentLip, 2);
+      return chunky(eye, G.sky, G.skyLip) + chunky(iris, G.ink, G.inkLip, 2) + chunky(slash, G.pink, G.pinkLip, 2);
     },
     clear: () => {
       const can = '<path d="M15 14 H41 L38 39 H18 Z"/>';
       const lid = '<rect x="11" y="8" width="34" height="6" rx="3"/>';
       const handle = '<rect x="23" y="4" width="10" height="5" rx="2"/>';
       const spark = '<path d="M47 27 l2 -5 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 z"/>';
-      return chunky(handle, G.ink, G.inkLip, 2) + chunky(can, G.peach, G.peachLip) + chunky(lid, G.ink, G.inkLip, 2) + chunky(spark, G.accent, G.accentLip, 2);
+      return chunky(handle, G.ink, G.inkLip, 2) + chunky(can, G.sky, G.skyLip) + chunky(lid, G.ink, G.inkLip, 2) + chunky(spark, G.pink, G.pinkLip, 2);
     },
     // Half-size glyphs (viewBox 28×44): a gently curved arrow each way.
-    undo: () => chunkyArrow('M23 30 Q22 17 11 17', 'M12 10 L4 17 L12 24 Z', G.peach, G.peachLip),
-    redo: () => chunkyArrow('M5 30 Q6 17 17 17', 'M16 10 L24 17 L16 24 Z', G.accent, G.accentLip),
+    undo: () => chunkyArrow('M23 30 Q22 17 11 17', 'M12 10 L4 17 L12 24 Z', G.sky, G.skyLip),
+    redo: () => chunkyArrow('M5 30 Q6 17 17 17', 'M16 10 L24 17 L16 24 Z', G.pink, G.pinkLip),
   };
   function glyph(id, h = 44) {
     const half = TOOLS[id]?.half;
@@ -207,7 +207,7 @@
       ring = `<g class="colors">` + cr.dots.map(({ ci, k, x, y }) => {
         const c = COLORS[ci], X = (cx + x).toFixed(2), Y = (cy + y).toFixed(2);
         const sel = ci === current ? `<circle class="sel" cx="${X}" cy="${Y}" r="${(cr.dotR + 3.5).toFixed(2)}"/>` : '';
-        const edge = c.hex === '#FFFFFF' ? ' stroke="#D3C9BB" stroke-width="1"' : '';
+        const edge = c.hex === '#FFFFFF' ? ' stroke="#C6CFDB" stroke-width="1"' : '';
         return `<g class="dot" data-c="${ci}" style="--k:${Math.abs(k - cr.dots.length / 2 + 0.5)}">` +
           `<circle cx="${X}" cy="${(cy + y + 2).toFixed(2)}" r="${cr.dotR.toFixed(2)}" fill="${c.lip}"/>` +
           `<circle cx="${X}" cy="${Y}" r="${cr.dotR.toFixed(2)}" fill="${c.hex}"${edge}/>${sel}</g>`;

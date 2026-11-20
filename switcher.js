@@ -61,6 +61,10 @@ function showPage(id, animate) {
   const from = PAGES[currentPage];
   const to = PAGES[id];
   currentPage = id;
+  // Each tool wears its own theme: the whole window recolors as you switch.
+  const tool = Tools.TOOLS.find((t) => t.id === id);
+  document.documentElement.dataset.theme = tool.theme;
+  scrawl.send('window:bg', tool.bg);
   items().forEach((b) => b.setAttribute('aria-checked', b.dataset.tool === id));
   labelButton(id, animate);
   if (typeof cancelAwayListening === 'function') cancelAwayListening();

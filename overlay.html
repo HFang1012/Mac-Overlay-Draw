@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'">
-<title>Scrawl layer</title>
+<title>Scrawl overlay</title>
 <link rel="stylesheet" href="base.css">
 <style>
   html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; }
@@ -13,27 +13,27 @@
   #ring {
     position: fixed; left: 0; top: 0; pointer-events: none; border-radius: 50%; will-change: transform;
     box-sizing: border-box; display: grid; place-items: center;
-    border: 1.5px solid #2B2733; box-shadow: 0 0 0 1.5px rgba(251, 248, 243, 0.9), inset 0 0 0 1.5px rgba(251, 248, 243, 0.9);
+    border: 1.5px solid #262B36; box-shadow: 0 0 0 1.5px rgba(248, 250, 252, 0.9), inset 0 0 0 1.5px rgba(248, 250, 252, 0.9);
     opacity: 0; scale: 0.6;
     transition: opacity 140ms ease, scale 320ms var(--bouncy), background 120ms ease, width 260ms var(--bouncy), height 260ms var(--bouncy), margin 260ms var(--bouncy);
   }
   #ring.show { opacity: 1; scale: 1; }
-  #ring.down { background: rgba(185, 165, 244, 0.24); }
+  #ring.down { background: rgba(244, 156, 176, 0.2); }
   /* Pencil: a ring in the ink colour around a dot exactly as wide as the line. */
   #ring.pencil { border-color: var(--ink-color); }
   #ring.pencil::after {
     content: ""; width: var(--dot); height: var(--dot); border-radius: 50%; background: var(--ink-color);
-    box-shadow: 0 0 0 1px rgba(251, 248, 243, 0.9);
+    box-shadow: 0 0 0 1px rgba(248, 250, 252, 0.9);
   }
   #ring.pencil.down { background: transparent; scale: 0.85; }
 
   #wheel { position: fixed; pointer-events: none; left: 0; top: 0; }
-  #wheel .wheel { filter: drop-shadow(0 8px 18px rgba(43, 39, 51, 0.2)); }
+  #wheel .wheel { filter: drop-shadow(0 8px 18px rgba(38, 43, 54, 0.2)); }
 
   /* Tool chip beside the arrow. It pops in when you pick a tool. */
   #badge {
     position: fixed; left: 0; top: 0; pointer-events: none; will-change: transform;
-    filter: drop-shadow(0 2px 4px rgba(43, 39, 51, 0.2));
+    filter: drop-shadow(0 2px 4px rgba(38, 43, 54, 0.2));
     opacity: 0; transition: opacity 120ms ease;
   }
   #badge.show { opacity: 1; }
@@ -45,18 +45,18 @@
   #pointer .core {
     position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; box-sizing: border-box; border-radius: 50%;
     border: 2px solid var(--ink); background: transparent;
-    box-shadow: 0 0 0 1.5px rgba(251, 248, 243, 0.9), inset 0 0 0 1px rgba(251, 248, 243, 0.6);
+    box-shadow: 0 0 0 1.5px rgba(248, 250, 252, 0.9), inset 0 0 0 1px rgba(248, 250, 252, 0.6);
     transition: scale 300ms var(--bouncy), opacity 140ms ease, background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
   }
   #pointer.hot .core {
     scale: 0.62; background: var(--ink); border-color: var(--ink);
-    box-shadow: 0 0 0 2px rgba(251, 248, 243, 0.95);
+    box-shadow: 0 0 0 2px rgba(248, 250, 252, 0.95);
   }
   #pointer .arrow { position: absolute; left: 0; top: 0; rotate: var(--a, -90deg); opacity: 0; scale: 0.4; transition: rotate 320ms var(--bouncy), opacity 120ms ease, scale 300ms var(--bouncy); }
   #pointer .arrow::after {
     content: ""; position: absolute; left: 10px; top: -5px; width: 0; height: 0;
     border-left: 8px solid var(--ink); border-top: 5px solid transparent; border-bottom: 5px solid transparent;
-    filter: drop-shadow(0 0 1.5px rgba(251, 248, 243, 0.95));
+    filter: drop-shadow(0 0 1.5px rgba(248, 250, 252, 0.95));
   }
   #pointer.hot .arrow { opacity: 1; scale: 1; }
   #pointer .core { opacity: 1; }
@@ -64,7 +64,7 @@
   @media (prefers-reduced-motion: reduce) { #badge.swap { animation: none; } #ring, #pointer * { transition: opacity 1ms; } }
 
   #wheel { position: fixed; pointer-events: none; left: 0; top: 0; }
-  #wheel .wheel { filter: drop-shadow(0 8px 18px rgba(43, 39, 51, 0.2)); }
+  #wheel .wheel { filter: drop-shadow(0 8px 18px rgba(38, 43, 54, 0.2)); }
 
 </style>
 </head>

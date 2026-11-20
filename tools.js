@@ -1,7 +1,9 @@
 // The tools Pane holds, and Away's moods. Shared by the settings window, the Away screen and the main
 // process, so names, glyphs and colors come from one place.
 (function () {
-  const C = { ink: '#2B2733', inkLip: '#16131C', accent: '#B9A5F4', accentLip: '#8E76DC', peach: '#FFC593', peachLip: '#E39C60', cream: '#FBF8F3', creamLip: '#DCCDB8' };
+  // Each tool keeps its own colors: Scrawl's eraser pink on graphite, Away's lilac and apricot on plum.
+  const C = { ink: '#2B2733', inkLip: '#16131C', accent: '#B9A5F4', accentLip: '#8E76DC', peach: '#FFC593', peachLip: '#E39C60' };
+  const SC = { ink: '#262B36', inkLip: '#0F1218', pink: '#F49CB0', pinkLip: '#D96F8A' };
 
   // Chunky glyphs: a flat shape over a darker copy of itself, nudged down (the "lip").
   const lip = (shape, fill, under, dy) => `<g transform="translate(0 ${dy})" fill="${under}" stroke="${under}">${shape}</g><g fill="${fill}" stroke="${fill}">${shape}</g>`;
@@ -12,7 +14,7 @@
       viewBox: '200 270 640 470',
       body: () => {
         const loop = '<path d="M262 640 C372 640 480 590 506 470 C526 372 456 306 392 334 C318 366 326 492 424 566 C508 628 628 628 690 548 C716 514 734 474 746 436" fill="none" stroke-width="78" stroke-linecap="round" stroke-linejoin="round" class="scribble" stroke-dasharray="1400"/>';
-        return lip(loop, C.accent, C.accentLip, 30) + `<circle cx="752" cy="444" r="74" fill="${C.inkLip}"/><circle cx="752" cy="414" r="74" fill="${C.ink}"/>`;
+        return lip(loop, SC.pink, SC.pinkLip, 30) + `<circle cx="752" cy="444" r="74" fill="${SC.inkLip}"/><circle cx="752" cy="414" r="74" fill="${SC.ink}"/>`;
       },
     },
     // Away: a cup on its saucer, steam curling up. You've gone to get coffee.
@@ -35,8 +37,8 @@
   }
 
   const TOOLS = [
-    { id: 'scrawl', name: 'Scrawl', blurb: 'Hold a key and draw on anything.' },
-    { id: 'away', name: 'Away', blurb: 'Blur your screen while you step away.' },
+    { id: 'scrawl', name: 'Scrawl', blurb: 'Draw on your screen.', theme: 'scrawl', bg: '#E3E8EF' },
+    { id: 'away', name: 'Away', blurb: 'Blur your screen while you’re away.', theme: 'away', bg: '#ECE6DD' },
   ];
 
   // Away's gradient blobs. Each mood is three soft colors that drift behind the blur.

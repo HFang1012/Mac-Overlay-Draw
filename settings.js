@@ -14,7 +14,7 @@ async function save(patch) {
 const wells = [...document.querySelectorAll('.keywell')];
 const wellFor = (which) => wells.find((w) => w.dataset.which === which);
 const KEY_NAMES = { hotkey: 'Wheel key', drawKey: 'Draw key' };
-const DEFAULT_CAPTION = 'Click a key to choose a different one.';
+const DEFAULT_CAPTION = 'Click a key to change it.';
 let listening = null; // which key is being chosen
 
 function renderKey(which, pop) {
@@ -42,7 +42,7 @@ for (const well of wells) {
     }
     const ok = await scrawl.invoke('bind:start', which);
     if (!ok) {
-      setCaption('Allow Accessibility access first, so Pane can hear your keys.', true);
+      setCaption('Allow Accessibility access first.', true);
       $('access').classList.add('open');
       shake($('access'));
       return;
@@ -50,7 +50,7 @@ for (const well of wells) {
     listening = which;
     well.classList.add('listening');
     well.querySelector('.keys').innerHTML = '<span class="prompt pop">Press a key</span>';
-    setCaption(which === 'hotkey' ? 'Press the key you’ll hold to open the wheel. Esc cancels.' : 'Press the key you’ll hold to draw. Esc cancels.');
+    setCaption('Press a key. Esc cancels.');
   });
 }
 function stopListening(popWhich = null) {
@@ -261,7 +261,7 @@ function flashHint(text) {
   p.style.color = 'var(--accent-ink)';
   clearTimeout(hintTimer);
   hintTimer = setTimeout(() => {
-    p.textContent = 'Click a tool to take it off the wheel, or drag it to a new spot. Point at the pencil on the wheel to pick a color.';
+    p.textContent = 'Click to remove a tool. Drag to reorder.';
     p.style.color = '';
   }, 2200);
 }
@@ -364,7 +364,7 @@ function updateStatus() {
   }
   $('status').classList.toggle('ready', on && enabled);
   swapText($('statusText'), !enabled
-    ? 'Off. Your keys work as normal, and your drawings are tucked away until you turn Scrawl on.'
+    ? 'Off. Your keys work as normal.'
     : on
       ? `On. Hold ${S.hotkey.symbol} for the wheel, ${S.drawKey.symbol} to draw.`
       : trusted ? 'Starting up…' : 'Waiting for Accessibility access.');
