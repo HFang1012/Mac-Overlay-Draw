@@ -23,7 +23,7 @@
       });
       // Scrolling: the records slide one place along the arc, like flipping through a crate.
       if (shift?.side === side) {
-        const step = (Spin.metrics(st.size).step * 180) / Math.PI;
+        const step = (Spin.fan(st.size, st.count, st.layout).step * 180) / Math.PI;
         const deg = Spin.sideDir(side, st.layout) * shift.dir * step;
         g.querySelectorAll('.bead').forEach((b) => b.animate(
           [{ transform: `rotate(${deg}deg)` }, { transform: 'none' }],

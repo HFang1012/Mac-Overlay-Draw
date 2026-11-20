@@ -37,7 +37,7 @@
   const UP = 100, UP_MORE = 150, UP_LESS = 151; // coming songs: UP + k is the k-th record
   const BACK = 200, BACK_MORE = 250, BACK_LESS = 251; // songs already played
   const VOL = 300; // VOL + 0..100
-  const PL = 400, PL_MORE = 450, PL_LESS = 451; // playlists
+  const PL = 500, PL_MORE = 550, PL_LESS = 551; // playlists (VOL runs to 400)
   const isSlice = (h) => h != null && h >= 0 && h < SLICES.length;
   const isUp = (h) => h >= UP && h <= UP_LESS;
   const isBack = (h) => h >= BACK && h <= BACK_LESS;
@@ -96,8 +96,21 @@
     return { R, r, hubR, depth, press: depth * 0.7, beadR, rc, step, vw, rv, outer, box, cx: box / 2, cy: pad + outer };
   }
 
+  // A fan of records (and the scroll nubs at either end) stays inside its own slice, so sliding along
+  // it never wanders over to a neighbouring slice. With more slices or more records, they sit closer.
+  const sectorOf = (layout) => (Math.PI * 2) / lay(layout).length;
+  const fitStep = (step, count, layout) => Math.min(step, (sectorOf(layout) * 0.94) / (count + 1));
+  /** The fan's spacing and record size for this wheel. */
+  function fan(size, count, layout) {
+    const m = metrics(size);
+    const step = fitStep(m.step, count, layout);
+    const beadR = Math.min(m.beadR, Math.max(4.5, (step * m.rc - Math.max(3, size * 0.04)) / 2));
+    return { step, beadR };
+  }
+
   /** Where the k-th record of a side sits: fanned out around its slice. */
   function beadAngle(side, k, count, step, layout) {
+    step = fitStep(step, count, layout);
     const spread = (count - 1) * step;
     const c = sliceMid(SLICE[SIDES[side].slice], layout) ?? (side === 'back' ? Math.PI : 0);
     const dir = sideDir(side, layout);
@@ -131,24 +144,26 @@
       if (t < -slack || t > 1 + slack) return null;
       return VOL + Math.round(Math.max(0, Math.min(1, t)) * 100);
     };
+    const f = fan(size, count, layout);
     const beadFrom = (side, sticky) => {
       const n = ctx[side] || 0;
       const more = ctx[`${side}More`], less = ctx[`${side}Less`];
       const base = SIDES[side].base;
-      const a0 = beadAngle(side, 0, count, m.step, layout);
-      const rel = sideDir(side, layout) * wrap(a - a0);
-      const k = Math.round(rel / m.step);
-      if (d > m.rc + m.beadR + (sticky ? 70 : 22)) return null;
-      if (k >= count && k <= count + (sticky ? 3 : 1)) return more ? base + 50 : n ? base + n - 1 : null;
-      if (k >= n && k < count) return more ? base + 50 : n ? base + n - 1 : null;
-      if (k >= 0 && k < n) return base + k;
-      if (k === -1 || (sticky && k === -2)) return less ? base + 51 : null;
-      return null;
+      // Reaching a list: only out past the wheel, in this slice's own direction.
+      // Once on it (sticky), it holds you until you come back inside the wheel: past either end you
+      // stay on that end, so scrolling never lands on another slice's list.
+      const c = sliceMid(SLICE[SIDES[side].slice], layout);
+      const rel = sideDir(side, layout) * wrap(a - c); // along the list, from its middle
+      if (!sticky && (d > m.rc + f.beadR + 22 || Math.abs(rel) > sectorOf(layout) / 2)) return null;
+      const k = Math.round((rel + ((count - 1) * f.step) / 2) / f.step);
+      if (k >= n) return more ? base + 50 : n ? base + n - 1 : null;
+      if (k < 0) return less ? base + 51 : n ? base : null;
+      return base + k;
     };
     // What comes out of a slice: the volume arc, or its records.
     const outOf = (code, sticky) => {
       if (code == null || code < 0 || !layout.includes(ALL_SLICES[code])) return null;
-      if (code === SLICE.volume) return d < m.rv + (sticky ? 60 : 26) ? volFrom(sticky ? 0.45 : 0) : null;
+      if (code === SLICE.volume) return sticky ? volFrom(Infinity) : d < m.rv + 26 && Math.abs(wrap(a - sliceMid(code, layout))) <= sectorOf(layout) / 2 ? volFrom(0) : null;
       const side = Object.keys(SIDES).find((k) => SLICE[SIDES[k].slice] === code);
       return side ? beadFrom(side, sticky) : null;
     };
@@ -188,7 +203,8 @@
   /** The records on one side, plus the edge nubs that scroll. Goes inside <g class="beads" data-side>. */
   function beads(size, count, side, items, { more = false, less = false, layout, current = null } = {}) {
     const m = metrics(size);
-    const { cx, cy, rc, beadR, step } = m;
+    const { cx, cy, rc } = m;
+    const { step, beadR } = fan(size, count, layout);
     const nub = (k, dir) => {
       const a = beadAngle(side, k, count, step, layout);
       const x = cx + rc * Math.cos(a), y = cy + rc * Math.sin(a);
@@ -329,7 +345,7 @@
 
   const api = {
     ICONS, SLICES, SLICE, SIDES, DEFAULT_LAYOUT, ALL_SLICES, UP, UP_MORE, UP_LESS, BACK, BACK_MORE, BACK_LESS, VOL, PL, PL_MORE, PL_LESS,
-    isSlice, isUp, isBack, isPl, isVol, isBead, sliceOf, sideOf, layoutOf, sliceMid, sideDir, metrics, beadAngle, volAngle, hitTest, build, beads, setHover, disc, labelColor, iconGroup,
+    isSlice, isUp, isBack, isPl, isVol, isBead, sliceOf, sideOf, layoutOf, sliceMid, sideDir, metrics, fan, beadAngle, volAngle, hitTest, build, beads, setHover, disc, labelColor, iconGroup,
   };
   if (typeof window !== 'undefined') window.Spin = api;
   if (typeof module !== 'undefined') module.exports = api;
