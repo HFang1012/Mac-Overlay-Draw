@@ -343,8 +343,17 @@ function swapText(el, text) {
   el.classList.add('out');
   setTimeout(() => { el.textContent = text; el.classList.remove('out'); }, 160);
 }
+// ---------- on / off ----------
+$('power').addEventListener('click', () => { $('power').blur(); save({ enabled: !S.enabled }).then(updateStatus); });
+scrawl.on('settings:changed', (s) => { S = s; update(); updateStatus(); }); // e.g. from the Scrawl menu
+
 function updateStatus() {
   const { trusted, listening: on } = status;
+  const enabled = S.enabled !== false;
+  $('power').classList.toggle('off', !enabled);
+  $('power').setAttribute('aria-pressed', enabled);
+  swapText($('powerText'), enabled ? 'Turn off' : 'Turn on');
+  $('page').classList.toggle('off', !enabled);
   grantedChecks = trusted && !on ? grantedChecks + 1 : 0;
   const needsRestart = trusted && !on && grantedChecks >= 3;
   $('access').classList.toggle('open', !on && (!trusted || needsRestart));
@@ -356,10 +365,12 @@ function updateStatus() {
     btn.textContent = 'Open Accessibility settings';
     btn.onclick = () => scrawl.send('perm:open');
   }
-  $('status').classList.toggle('ready', on);
-  swapText($('statusText'), on
-    ? `Ready. Hold ${S.hotkey.symbol} for the wheel, ${S.drawKey.symbol} to draw.`
-    : trusted ? 'Starting up…' : 'Waiting for Accessibility access.');
+  $('status').classList.toggle('ready', on && enabled);
+  swapText($('statusText'), !enabled
+    ? 'Off. Your keys work as normal, and your drawings are tucked away until you turn Scrawl on.'
+    : on
+      ? `On. Hold ${S.hotkey.symbol} for the wheel, ${S.drawKey.symbol} to draw.`
+      : trusted ? 'Starting up…' : 'Waiting for Accessibility access.');
 }
 async function pollStatus() {
   status = await scrawl.invoke('perm:check');

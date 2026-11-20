@@ -18,6 +18,7 @@ const DEFAULTS = {
   eraserSize: 28,
   wheelSize: 76,
   openAtLogin: false,
+  enabled: true, // the on/off button: off means Scrawl ignores its keys and hides drawings (kept, not deleted)
 };
 const WHEEL_SIZES = [60, 76, 96]; // small, medium, large (outer radius, px)
 
@@ -96,6 +97,7 @@ function createOverlays() {
 // A display's drawing layer exists on screen only while there is something on it:
 // the wheel, a tool in hand, or visible drawings. Otherwise Scrawl is just a normal window.
 function overlayNeeded(id) {
+  if (!settings.enabled) return false;
   if (menu.open && menu.displayId === id) return true;
   if (activeTool) return true;
   return visible && (drawings[id]?.length ?? 0) > 0;
@@ -300,6 +302,7 @@ uIOhook.on('keydown', (e) => {
     settingsWin?.webContents.send('bind:done', { settings, which, error });
     return;
   }
+  if (!settings.enabled) return; // turned off: every key goes untouched to your apps
   // ⌘Z / ⌘⇧Z undo and redo, but only with a pencil or eraser in hand (Scrawl can't stop the app
   // underneath from getting the keys too, and with a tool in hand you're drawing, not editing it).
   if (e.keycode === UiohookKey.Z && e.metaKey && activeTool && !menu.open) {
@@ -320,6 +323,7 @@ uIOhook.on('keydown', (e) => {
   if (e.keycode === UiohookKey.Escape) dropTool();
 });
 uIOhook.on('keyup', (e) => {
+  if (!settings.enabled) return;
   if (isDrawKey(e.keycode)) { penUp(); return; }
   if (!isHotkey(e.keycode)) return;
   holding = false;
@@ -355,12 +359,31 @@ const trusted = () => systemPreferences.isTrustedAccessibilityClient(false);
 // ---------- IPC ----------
 ipcMain.handle('settings:get', () => ({ settings, trusted: trusted() }));
 ipcMain.handle('settings:set', (_e, patch) => {
+  if ('enabled' in patch) { setEnabled(patch.enabled); delete patch.enabled; }
   settings = { ...settings, ...patch };
   writeJSON('settings.json', settings);
   if ('openAtLogin' in patch) app.setLoginItemSettings({ openAtLogin: settings.openAtLogin });
   broadcast();
   return settings;
 });
+
+// Turning Scrawl off puts everything down: closes the wheel, lifts the pen, drops the tool,
+// and fades the drawings away. They're kept and come back when it's turned on again.
+function setEnabled(on) {
+  on = !!on;
+  if (settings.enabled === on) return;
+  if (!on) {
+    closeMenu(false);
+    penUp();
+    activeTool = null;
+    holding = false;
+  }
+  settings = { ...settings, enabled: on };
+  writeJSON('settings.json', settings);
+  broadcast();
+  buildMenu();
+  settingsWin?.webContents.send('settings:changed', settings);
+}
 ipcMain.handle('bind:start', (_e, which) => {
   if (!hookOn) return false; // can't hear keys yet: the settings screen explains why
   binding = which === 'drawKey' ? 'drawKey' : 'hotkey';
@@ -433,6 +456,7 @@ function buildMenu() {
         { role: 'about' },
         { type: 'separator' },
         { label: 'Settings…', accelerator: 'Cmd+,', click: show },
+        { label: settings.enabled ? 'Turn Scrawl Off' : 'Turn Scrawl On', click: () => setEnabled(!settings.enabled) },
         { type: 'separator' },
         { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
         { type: 'separator' },
@@ -463,5 +487,5 @@ app.on('before-quit', () => {
 
 // Test hook: only present when SCRAWL_TEST is set (used by automated checks, never in normal runs).
 if (process.env.SCRAWL_TEST) {
-  global.__scrawlTest = { applyTool, step, peek: () => ({ activeTool, visible, drawings, undo: history.undo.length, redo: history.redo.length }) };
+  global.__scrawlTest = { applyTool, step, setEnabled, peek: () => ({ activeTool, visible, enabled: settings.enabled, drawings, undo: history.undo.length, redo: history.redo.length }) };
 }

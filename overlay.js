@@ -320,7 +320,7 @@ function closeWheel(choice) {
 scrawl.on('state', (s) => {
   const wasTool = state.activeTool;
   state = s;
-  setVisible(state.visible, true);
+  setVisible(state.visible && state.settings.enabled !== false, true); // off: the ink fades away (kept)
   if (!state.activeTool && wasTool) { if (penKey) { penKey = false; finish(); } }
   applyCursor();
 });
@@ -365,7 +365,7 @@ addEventListener('resize', resize);
 scrawl.invoke('overlay:init', displayId).then(({ strokes: saved, state: s }) => {
   strokes = saved;
   state = s;
-  setVisible(state.visible, false);
+  setVisible(state.visible && state.settings.enabled !== false, false);
   resize();
   applyCursor();
 });

@@ -80,7 +80,26 @@
   .pill:hover { transform: translateY(-1px); box-shadow: 0 5px 0 var(--pink-lip); }
   .pill:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--pink-lip); }
 
-  .status { margin-top: 26px; display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 12px; font-weight: 600; }
+  /* On/off: a pill keycap like Lull's Start button, with the status beside it. */
+  .power { margin-top: 26px; display: flex; align-items: center; gap: 14px; }
+  .power-btn {
+    flex: none; height: 42px; padding: 0 20px 0 16px; border-radius: 21px; display: inline-flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 800; background: var(--card); box-shadow: 0 4px 0 var(--card-lip); margin-bottom: 4px;
+    transition: transform 200ms var(--bouncy), box-shadow 200ms var(--bouncy), background 220ms ease;
+  }
+  .power-btn svg { width: 17px; height: 17px; transition: rotate 420ms var(--bouncy); }
+  .power-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 0 var(--card-lip); }
+  .power-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--card-lip); }
+  .power-btn.off { background: var(--pink); box-shadow: 0 4px 0 var(--pink-lip); }
+  .power-btn.off svg { rotate: 360deg; } /* a full spin when switching, ending upright */
+  .power-btn.off:hover { box-shadow: 0 5px 0 var(--pink-lip); }
+  .power-btn.off:active { box-shadow: 0 1px 0 var(--pink-lip); }
+  .power-btn:focus-visible { box-shadow: 0 4px 0 var(--card-lip), 0 0 0 3px var(--pink-soft); }
+  /* While off, the controls that only matter when Scrawl is listening step back a little. */
+  .keyrow, #keycaption, .card { transition: opacity 260ms ease, filter 260ms ease; }
+  .page.off .keyrow, .page.off #keycaption, .page.off .card { opacity: 0.6; filter: saturate(0.5); }
+  .status { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 12px; font-weight: 600; line-height: 1.4; }
+  .status .dot { flex: none; }
   .status .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--edge); transition: background 300ms ease; position: relative; }
   .status.ready .dot { background: #2FA36B; }
   .status.ready .dot::after {
@@ -234,8 +253,14 @@
       </div>
     </div></div>
 
-    <div class="status rise" style="--d:240ms" id="status">
-      <span class="dot"></span><span class="swap" id="statusText">Checking access…</span>
+    <div class="power rise" style="--d:240ms">
+      <button class="power-btn" id="power" aria-pressed="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 3.5v8"/><path d="M6.6 6.8a7.5 7.5 0 1 0 10.8 0"/></svg>
+        <span class="swap" id="powerText">Turn off</span>
+      </button>
+      <div class="status" id="status">
+        <span class="dot"></span><span class="swap" id="statusText">Checking access…</span>
+      </div>
     </div>
   </section>
 
