@@ -5,9 +5,9 @@ const { uIOhook, UiohookKey } = require('uiohook-napi');
 const Wheel = require('./wheel.js'); // same geometry the wheel is drawn with, for hit-testing
 
 // ---------- persistence ----------
-// Ring tools. Show/hide isn't one: it's the button in the middle of the wheel.
-// Undo and redo are half-size and start out side by side, so together they fill one slot.
-const TOOL_IDS = ['pencil', 'eraser', 'clear', 'undo', 'redo'];
+// Ring tools. Undo and redo are half-size and start out side by side, so together they fill one slot.
+// Letting go in the middle of the wheel cancels.
+const TOOL_IDS = ['pencil', 'eraser', 'clear', 'undo', 'redo', 'toggle'];
 const DEFAULTS = {
   hotkey: { codes: [UiohookKey.Alt, UiohookKey.AltRight], symbol: '⌥', name: 'Option' },
   // Held while a tool is in hand, it puts the pen down without clicking.
@@ -133,9 +133,9 @@ function ensurePoll() {
     sendOverlays('cursor', null);
   }
 }
-// -1 is the middle (show/hide) button; otherwise a slice index.
+// -1 is the middle (cancel), n a slice, Wheel.COLOR_HOVER + i the pencil in Wheel.COLORS[i].
 function hoverIndex(dx, dy) {
-  return Wheel.hitTest(settings.wheelSize, menu.items, dx, dy);
+  return Wheel.hitTest(settings.wheelSize, menu.items, dx, dy, settings.pencilColor);
 }
 function tick() {
   const p = screen.getCursorScreenPoint();
@@ -175,7 +175,9 @@ function closeMenu(pick) {
   // Read the cursor at the moment of release so a quick flick still lands on the right slice.
   const p = screen.getCursorScreenPoint();
   const hover = hoverIndex(p.x - menu.x, p.y - menu.y);
-  const choice = pick ? (hover >= 0 ? menu.items[hover] : 'toggle') : null;
+  let choice = null; // letting go in the middle cancels
+  if (pick && hover >= Wheel.COLOR_HOVER) choice = { tool: 'pencil', color: Wheel.COLORS[hover - Wheel.COLOR_HOVER].hex };
+  else if (pick && hover >= 0) choice = menu.items[hover];
   overlays.get(menu.displayId)?.webContents.send('menu:close', choice);
   menu.open = false;
   if (choice) applyTool(choice);
@@ -184,6 +186,16 @@ function closeMenu(pick) {
 }
 function applyTool(id) {
   penUp();
+  // A color from the ring beside the pencil: switch to it and pick up the pencil (never puts it down).
+  if (id && typeof id === 'object') {
+    settings = { ...settings, pencilColor: id.color };
+    writeJSON('settings.json', settings);
+    activeTool = 'pencil';
+    visible = true;
+    broadcast();
+    settingsWin?.webContents.send('settings:changed', settings);
+    return;
+  }
   if (id === 'pencil' || id === 'eraser') {
     // Picking the tool you're already holding puts it down.
     activeTool = activeTool === id ? null : id;
@@ -315,7 +327,10 @@ uIOhook.on('keydown', (e) => {
     return;
   }
   if (isHotkey(e.keycode)) {
-    if (!holding) { holding = true; openMenu(); }
+    // Open whenever the wheel isn't already up. Don't trust `holding` here: tapping fast can make macOS
+    // drop a key-up, which used to leave `holding` stuck on and the wheel never opening again.
+    holding = true;
+    if (!menu.open) openMenu();
     return;
   }
   // Any other key while the wheel is up means the user is typing a combo (⌥+letter) — get out of the way.
@@ -487,5 +502,5 @@ app.on('before-quit', () => {
 
 // Test hook: only present when SCRAWL_TEST is set (used by automated checks, never in normal runs).
 if (process.env.SCRAWL_TEST) {
-  global.__scrawlTest = { applyTool, step, setEnabled, peek: () => ({ activeTool, visible, enabled: settings.enabled, drawings, undo: history.undo.length, redo: history.redo.length }) };
+  global.__scrawlTest = { applyTool, step, setEnabled, peek: () => ({ activeTool, visible, menuOpen: menu.open, pencilColor: settings.pencilColor, enabled: settings.enabled, drawings, undo: history.undo.length, redo: history.redo.length }) };
 }

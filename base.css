@@ -49,6 +49,18 @@
 .wheel .hub-ico.on { opacity: 1; transform: none; }
 .wheel .hub-ico.on.dim { opacity: 0.32; }
 
+/* The pencil's colors: they fan out from the middle of the arc when you point at the pencil. */
+.wheel .colors .dot {
+  transform-box: fill-box; transform-origin: center;
+  opacity: 0; transform: scale(0.2);
+  transition: opacity 120ms ease, transform 300ms var(--bouncy);
+  transition-delay: 0ms;
+}
+.wheel .colors.show .dot { opacity: 1; transform: none; transition-delay: calc(var(--k) * 22ms); }
+.wheel .colors.show .dot.hot { transform: scale(1.32); transition-delay: 0ms; }
+.wheel .colors .sel { fill: none; stroke: var(--ink); stroke-width: 1.8; }
+.wheel .hub-ico { transition: opacity 120ms ease, transform 320ms var(--bouncy), color 140ms ease; }
+
 /* Opening: the wheel springs out of the cursor, slices land one after another. */
 .wheel.enter .wheel-body { animation: wheel-in 380ms var(--bouncy) both; }
 .wheel.enter .slice { animation: slice-in 340ms var(--bouncy) both; animation-delay: calc(var(--i) * 28ms); }

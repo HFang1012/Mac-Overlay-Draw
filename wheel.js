@@ -17,15 +17,29 @@
     eraser: ['M7 20.5h13', 'M3.8 15.2l9.4-9.4a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L11.6 19.4H8z', 'M8.6 10.4l5 5'],
   };
 
-  // Tools that can sit on the ring. Show/hide isn't here: it's the button in the middle.
+  // Ring tools. `weight` is the share of the circle: the pencil is a bit bigger, undo/redo are half-size.
   const TOOLS = {
-    pencil: { name: 'Pencil' },
+    pencil: { name: 'Pencil', weight: 1.4 },
     eraser: { name: 'Eraser' },
+    toggle: { name: 'Show / hide' },
     clear: { name: 'Clear all' },
     undo: { name: 'Undo', half: true },
     redo: { name: 'Redo', half: true },
   };
-  const weight = (id) => (TOOLS[id]?.half ? 0.5 : 1);
+  const weight = (id) => TOOLS[id]?.weight ?? (TOOLS[id]?.half ? 0.5 : 1);
+
+  // Pencil colors, offered in settings and on the wheel (fanned out beside the pencil).
+  const COLORS = [
+    { hex: '#E5484D', lip: '#B8343A', name: 'Red' },
+    { hex: '#F5A524', lip: '#C9811A', name: 'Orange' },
+    { hex: '#2FA36B', lip: '#217A50', name: 'Green' },
+    { hex: '#3A7BEA', lip: '#2A5DB8', name: 'Blue' },
+    { hex: '#8E5BE8', lip: '#6B41B8', name: 'Violet' },
+    { hex: '#262B36', lip: '#0F1218', name: 'Graphite' },
+    { hex: '#FFFFFF', lip: '#C6CFDB', name: 'White' },
+  ];
+  const COLOR_HOVER = 1000; // hover codes from 1000 up mean "pencil in COLORS[code - 1000]"
+  const colorIndex = (hex) => Math.max(0, COLORS.findIndex((c) => c.hex.toLowerCase() === String(hex).toLowerCase()));
 
   // Chunky, Lull-style glyphs for the settings tiles: flat shapes with a darker lip underneath.
   const G = { ink: '#262B36', inkLip: '#0F1218', pink: '#F49CB0', pinkLip: '#D96F8A', sky: '#A9C1EC', skyLip: '#7F9BD1', paper: '#F3EEE6', paperLip: '#D8CFC2' };
@@ -49,10 +63,11 @@
       const sleeve = '<rect x="26" y="14" width="22" height="17" rx="4"/>';
       return `<g transform="rotate(-18 28 22)">${chunky(pinkPart, G.pink, G.pinkLip)}${chunky(sleeve, G.sky, G.skyLip)}</g>`;
     },
-    eye: () => {
+    toggle: () => {
       const eye = '<path d="M6 22 C14 9, 42 9, 50 22 C42 35, 14 35, 6 22 Z"/>';
       const iris = '<circle cx="28" cy="22" r="7"/>';
-      return chunky(eye, G.sky, G.skyLip) + chunky(iris, G.ink, G.inkLip, 2);
+      const slash = '<rect x="26" y="2" width="5" height="40" rx="2.5" transform="rotate(-42 28 22)"/>';
+      return chunky(eye, G.sky, G.skyLip) + chunky(iris, G.ink, G.inkLip, 2) + chunky(slash, G.pink, G.pinkLip, 2);
     },
     clear: () => {
       const can = '<path d="M15 14 H41 L38 39 H18 Z"/>';
@@ -71,9 +86,8 @@
     return `<svg width="${(h * vw) / 44}" height="${h}" viewBox="0 0 ${vw} 44" aria-hidden="true">${GLYPHS[id]()}</svg>`;
   }
 
-  const eyeIcon = (visible) => (visible ? 'hide' : 'show');
   function look(id, visible) {
-    if (id === 'toggle') return { icon: eyeIcon(visible), label: visible ? 'Hide all' : 'Show all' };
+    if (id === 'toggle') return { icon: visible ? 'hide' : 'show', label: visible ? 'Hide all' : 'Show all' };
     return { icon: id, label: TOOLS[id].name };
   }
 
@@ -96,7 +110,7 @@
   }
 
   /**
-   * Angles (radians, 0 = right, clockwise) for each item. Half tools take half a slice.
+   * Angles (radians, 0 = right, clockwise) for each item, sized by weight.
    * The first item is centred at the top.
    */
   function layout(items) {
@@ -111,9 +125,41 @@
     });
   }
 
-  /** What's under an offset from the wheel's centre: -1 for the middle button, else a slice index. */
-  function hitTest(size, items, dx, dy) {
-    if (Math.hypot(dx, dy) < metrics(size).hubR + 2 || !items.length) return -1;
+  /**
+   * The pencil's colors: dots on an arc just outside the pencil slice, with the current color in the
+   * middle, so flicking straight at the pencil keeps your color. Offsets are from the wheel's centre.
+   */
+  function colorRing(size, items, pencilColor) {
+    const seg = layout(items).find((s) => s.id === 'pencil');
+    if (!seg) return null;
+    const { R } = metrics(size);
+    const dotR = Math.max(6, size * 0.1);
+    const rc = R + dotR + Math.max(6, size * 0.08);
+    const step = (dotR * 2 + Math.max(5, size * 0.06)) / rc; // angle between neighbouring dots
+    const mid = Math.floor(COLORS.length / 2);
+    const current = colorIndex(pencilColor);
+    const dots = COLORS.map((_, k) => {
+      const ci = (current - mid + k + COLORS.length) % COLORS.length;
+      const angle = seg.mid + (k - mid) * step;
+      return { ci, k, angle, x: rc * Math.cos(angle), y: rc * Math.sin(angle) };
+    });
+    return { dots, dotR, rc, step, mid: seg.mid, R };
+  }
+
+  const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a)); // to (-π, π]
+
+  /**
+   * What's under an offset from the wheel's centre:
+   * -1 the middle (let go there to cancel), n a slice index, COLOR_HOVER + i the pencil in COLORS[i].
+   */
+  function hitTest(size, items, dx, dy, pencilColor) {
+    const d = Math.hypot(dx, dy);
+    if (d < metrics(size).hubR + 2 || !items.length) return -1;
+    const ring = colorRing(size, items, pencilColor);
+    if (ring && d > ring.R + 2 && d < ring.rc + ring.dotR + 16) {
+      const k = Math.round(wrap(Math.atan2(dy, dx) - ring.mid) / ring.step) + Math.floor(COLORS.length / 2);
+      if (k >= 0 && k < COLORS.length) return COLOR_HOVER + ring.dots[k].ci;
+    }
     const segs = layout(items);
     const base = segs[0].start;
     const t = (((Math.atan2(dy, dx) - base) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
@@ -122,13 +168,13 @@
   }
 
   /** Builds the wheel SVG markup. Hover state is applied later with setHover(). */
-  function build({ items, size = 84, visible = true, active = null, enter = true }) {
+  function build({ items, size = 84, visible = true, active = null, enter = true, pencilColor = null, colors = true }) {
     const { R, r, hubR, depth, press, box, cx, cy } = metrics(size);
     const gap = Math.max(2.2, size * 0.03);
     const pt = (rad, a) => `${(cx + rad * Math.cos(a)).toFixed(2)},${(cy + rad * Math.sin(a)).toFixed(2)}`;
     let slices = '';
 
-    layout(items).forEach(({ id, start, end, mid, span }, i) => {
+    layout(items).forEach(({ id, start, end, mid }, i) => {
       let d;
       if (items.length === 1) {
         d = `M${cx - R},${cy}a${R},${R} 0 1 0 ${R * 2},0a${R},${R} 0 1 0 ${-R * 2},0Z M${cx - r},${cy}a${r},${r} 0 1 1 ${r * 2},0a${r},${r} 0 1 1 ${-r * 2},0Z`;
@@ -140,7 +186,8 @@
         d = `M${pt(R, a0)}A${R},${R} 0 ${large} 1 ${pt(R, a1)}L${pt(r, b1)}A${r},${r} 0 ${large} 0 ${pt(r, b0)}Z`;
       }
       const half = TOOLS[id]?.half;
-      const ir = (R + r) / 2, iconSize = Math.max(half ? 11 : 13, size * (half ? 0.2 : 0.24));
+      const scale = half ? 0.2 : id === 'pencil' ? 0.28 : 0.24;
+      const ir = (R + r) / 2, iconSize = Math.max(half ? 11 : 13, size * scale);
       const ix = cx + ir * Math.cos(mid), iy = cy + ir * Math.sin(mid);
       const dot = active === id
         ? `<circle class="act" cx="${(cx + (R - depth - 2) * Math.cos(mid)).toFixed(2)}" cy="${(cy + (R - depth - 2) * Math.sin(mid)).toFixed(2)}" r="${Math.max(2, size * 0.028).toFixed(2)}"/>`
@@ -152,10 +199,25 @@
         `</g>`;
     });
 
-    // The middle is the show/hide button. Its face also shows the icon of the slice you point at;
-    // every icon is pre-placed so swaps can animate.
+    // The pencil's colors, hidden until you point at the pencil.
+    let ring = '';
+    const cr = colors && pencilColor ? colorRing(size, items, pencilColor) : null;
+    if (cr) {
+      const current = colorIndex(pencilColor);
+      ring = `<g class="colors">` + cr.dots.map(({ ci, k, x, y }) => {
+        const c = COLORS[ci], X = (cx + x).toFixed(2), Y = (cy + y).toFixed(2);
+        const sel = ci === current ? `<circle class="sel" cx="${X}" cy="${Y}" r="${(cr.dotR + 3.5).toFixed(2)}"/>` : '';
+        const edge = c.hex === '#FFFFFF' ? ' stroke="#C6CFDB" stroke-width="1"' : '';
+        return `<g class="dot" data-c="${ci}" style="--k:${Math.abs(k - cr.dots.length / 2 + 0.5)}">` +
+          `<circle cx="${X}" cy="${(cy + y + 2).toFixed(2)}" r="${cr.dotR.toFixed(2)}" fill="${c.lip}"/>` +
+          `<circle cx="${X}" cy="${Y}" r="${cr.dotR.toFixed(2)}" fill="${c.hex}"${edge}/>${sel}</g>`;
+      }).join('') + `</g>`;
+    }
+
+    // The middle shows the icon of whatever you're pointing at (letting go there cancels).
+    // Every icon is pre-placed so swaps can animate.
     const hubIcon = Math.max(14, hubR * 1.05);
-    const names = [...new Set([eyeIcon(visible), ...items.map((id) => look(id, visible).icon)])];
+    const names = [...new Set(items.map((id) => look(id, visible).icon))];
     const hubIcons = names.map((name) => iconGroup(name, cx, cy, hubIcon, 'hub-ico', `data-icon="${name}"`)).join('');
     const hub =
       `<g class="hub"><circle class="hub-edge" cx="${cx}" cy="${cy + depth * 0.7}" r="${hubR}"/>` +
@@ -163,22 +225,34 @@
 
     return `<svg class="wheel${enter ? ' enter' : ''}" width="${box}" height="${box}" viewBox="0 0 ${box} ${box}" ` +
       `style="--cx:${cx}px;--cy:${cy}px;--press:${press}px" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tool wheel">` +
-      `<g class="wheel-body">${slices}</g>${hub}</svg>`;
+      `<g class="wheel-body">${slices}</g>${ring}${hub}</svg>`;
   }
 
   /**
-   * hover: null = nothing lit (the eye rests in the middle), -1 = the middle button, n = slice n.
-   * Pointing at a slice swaps the middle icon to that tool.
+   * hover: null = nothing, -1 = the middle (cancel), n = slice n, COLOR_HOVER + i = pencil in COLORS[i].
+   * Pointing at a slice swaps the middle icon to that tool; pointing at a color tints the pencil icon.
    */
-  function setHover(svg, hover, items, visible) {
+  function setHover(svg, hover, items, visible, active) {
     if (!svg) return;
-    svg.querySelectorAll('.slice').forEach((g) => g.classList.toggle('hot', Number(g.dataset.i) === hover));
-    svg.querySelector('.hub')?.classList.toggle('hot', hover === -1);
-    const name = hover != null && hover >= 0 ? look(items[hover], visible).icon : eyeIcon(visible);
-    svg.querySelectorAll('.hub-ico').forEach((g) => g.classList.toggle('on', g.dataset.icon === name));
+    const isColor = hover != null && hover >= COLOR_HOVER;
+    const slice = isColor ? items.indexOf('pencil') : hover;
+    svg.querySelectorAll('.slice').forEach((g) => g.classList.toggle('hot', slice != null && Number(g.dataset.i) === slice));
+    svg.querySelector('.colors')?.classList.toggle('show', slice != null && slice >= 0 && items[slice] === 'pencil');
+    svg.querySelectorAll('.colors .dot').forEach((g) => g.classList.toggle('hot', isColor && Number(g.dataset.c) === hover - COLOR_HOVER));
+
+    // Middle icon: the tool you point at; over the middle itself, the tool in your hand, faded.
+    const id = slice != null && slice >= 0 ? items[slice] : (hover === -1 && items.includes(active) ? active : null);
+    const name = id ? look(id, visible).icon : null;
+    const tint = isColor ? (COLORS[hover - COLOR_HOVER].hex === '#FFFFFF' ? '#9AA3B2' : COLORS[hover - COLOR_HOVER].hex) : '';
+    svg.querySelectorAll('.hub-ico').forEach((g) => {
+      const on = g.dataset.icon === name;
+      g.classList.toggle('on', on);
+      g.classList.toggle('dim', on && !(slice >= 0));
+      g.style.color = on && g.dataset.icon === 'pencil' ? tint : '';
+    });
   }
 
-  const api = { ICONS, CURSOR_PATHS, TOOLS, weight, look, icon, glyph, build, setHover, metrics, layout, hitTest };
+  const api = { ICONS, CURSOR_PATHS, TOOLS, COLORS, COLOR_HOVER, weight, look, icon, glyph, build, setHover, metrics, layout, colorRing, hitTest };
   if (typeof window !== 'undefined') window.Wheel = api;
   if (typeof module !== 'undefined') module.exports = api;
 })();

@@ -251,7 +251,11 @@ let pointerAngle = null;
 function setPointerHover(h) {
   const hot = h >= 0;
   if (hot) {
-    let a = (Wheel.layout(menu.items)[h].mid * 180) / Math.PI; // aim at the slice's middle (slices can be half-size)
+    // Aim at the color dot you're on, or at the middle of the slice (slices come in different sizes).
+    const rad = h >= Wheel.COLOR_HOVER
+      ? Wheel.colorRing(state.settings.wheelSize, menu.items, state.settings.pencilColor).dots.find((d) => d.ci === h - Wheel.COLOR_HOVER).angle
+      : Wheel.layout(menu.items)[h].mid;
+    let a = (rad * 180) / Math.PI;
     if (pointerAngle !== null) { // turn the short way round
       while (a - pointerAngle > 180) a -= 360;
       while (a - pointerAngle < -180) a += 360;
@@ -268,8 +272,7 @@ function setPointerHover(h) {
     pointerAngle = a;
   }
   pointerEl.classList.toggle('hot', hot);
-  // Over the middle button the pink hub is the feedback; the pointer tucks away so the eye stays clear.
-  pointerEl.classList.toggle('center', h === -1);
+  // Over the middle (cancel) it's a hollow ring: nothing will be picked.
 }
 // Raw pointer updates arrive at the device's rate, ahead of the next frame.
 function onLocal(e) {
@@ -289,13 +292,13 @@ function openWheel(m) {
   menu = { x: m.x, y: m.y, items: m.items, hover: -1 };
   const size = state.settings.wheelSize;
   const { cx, cy } = Wheel.metrics(size);
-  wheelEl.innerHTML = Wheel.build({ items: m.items, size, visible: state.visible, active: state.activeTool });
+  wheelEl.innerHTML = Wheel.build({ items: m.items, size, visible: state.visible, active: state.activeTool, pencilColor: state.settings.pencilColor });
   wheelEl.style.transform = `translate(${m.x - cx}px, ${m.y - cy}px)`;
-  Wheel.setHover(svgEl(), -1, m.items, state.visible); // the pointer starts on the middle button
+  Wheel.setHover(svgEl(), -1, m.items, state.visible, state.activeTool); // the pointer starts in the middle
   ring.classList.remove('show');
   pos = { x: m.x, y: m.y };
   pointerAngle = null;
-  pointerEl.classList.remove('hot'); pointerEl.classList.add('center'); // the wheel opens with the pointer on the middle button
+  pointerEl.classList.remove('hot', 'center');
   pointerEl.style.translate = `${m.x}px ${m.y}px`;
   pointerEl.classList.add('show');
   applyCursor();
@@ -306,7 +309,8 @@ function closeWheel(choice) {
   menu = null;
   pointerEl.classList.remove('show');
   if (svg && m) {
-    if (choice) svg.querySelector(`.slice[data-i="${m.items.indexOf(choice)}"]`)?.classList.add('picked', 'hot');
+    const picked = choice && typeof choice === 'object' ? 'pencil' : choice; // a color picks the pencil
+    if (picked) svg.querySelector(`.slice[data-i="${m.items.indexOf(picked)}"]`)?.classList.add('picked', 'hot');
     svg.classList.remove('enter');
     svg.classList.add('leave');
     leaveTimer = setTimeout(() => { wheelEl.innerHTML = ''; }, 200);
@@ -352,7 +356,7 @@ scrawl.on('menu:open', (m) => {
 scrawl.on('menu:hover', (h) => {
   if (!menu) return;
   menu.hover = h;
-  Wheel.setHover(svgEl(), h, menu.items, state.visible);
+  Wheel.setHover(svgEl(), h, menu.items, state.visible, state.activeTool);
   setPointerHover(h);
 });
 scrawl.on('menu:close', closeWheel);

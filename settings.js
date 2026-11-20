@@ -1,10 +1,6 @@
 const $ = (id) => document.getElementById(id);
 const BOUNCY = getComputedStyle(document.documentElement).getPropertyValue('--bouncy').trim();
-const COLORS = [
-  ['#E5484D', '#B8343A', 'Red'], ['#F5A524', '#C9811A', 'Orange'], ['#2FA36B', '#217A50', 'Green'],
-  ['#3A7BEA', '#2A5DB8', 'Blue'], ['#8E5BE8', '#6B41B8', 'Violet'], ['#262B36', '#0F1218', 'Graphite'],
-  ['#FFFFFF', '#C6CFDB', 'White'],
-];
+const COLORS = Wheel.COLORS; // shared with the wheel's color ring
 
 let S = null;
 let status = { trusted: false, listening: false };
@@ -135,7 +131,7 @@ function toggleTool(id, el) {
 
 // Slot positions come from layout widths (never from where tiles are mid-animation), and tiles can be
 // full or half width. For the dragged tile we try every slot and keep the one nearest the pointer.
-const GAP = 8;
+const GAP = 6; // matches .tiles gap
 function slotLeft(order, id) {
   let x = tilesEl.getBoundingClientRect().left;
   for (const i of order) { if (i === id) return x; x += tileEls.get(i).offsetWidth + GAP; }
@@ -264,7 +260,7 @@ function flashHint(text) {
   p.style.color = 'var(--pink-lip)';
   clearTimeout(hintTimer);
   hintTimer = setTimeout(() => {
-    p.textContent = 'Click a tool to take it off the wheel, or drag it to a new spot. The eye in the middle shows or hides drawings.';
+    p.textContent = 'Click a tool to take it off the wheel, or drag it to a new spot. Point at the pencil on the wheel to pick a color.';
     p.style.color = '';
   }, 2200);
 }
@@ -273,7 +269,7 @@ function flashHint(text) {
 function renderSwatches() {
   const box = $('swatches');
   if (!box.children.length) {
-    COLORS.forEach(([hex, lip, name], i) => {
+    COLORS.forEach(({ hex, lip, name }, i) => {
       const b = document.createElement('button');
       b.className = 'swatch pop';
       b.style.setProperty('--c', hex);

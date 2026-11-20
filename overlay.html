@@ -39,7 +39,7 @@
   #badge.show { opacity: 1; }
   #badge.swap { animation: chip-in 380ms var(--bouncy); }
   @keyframes chip-in { from { scale: 0.3; rotate: -20deg; } }
-  /* Wheel pointer: hidden over the middle button (the hub lights up instead); a solid graphite dot with an arrow aimed at the slice when over one. */
+  /* Wheel pointer: a hollow ring over the middle (cancel); a solid graphite dot with an arrow aimed at the slice or color when over one. */
   #pointer { position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none; opacity: 0; transition: opacity 120ms ease; }
   #pointer.show { opacity: 1; }
   #pointer .core {
@@ -60,7 +60,6 @@
   }
   #pointer.hot .arrow { opacity: 1; scale: 1; }
   #pointer .core { opacity: 1; }
-  #pointer.center .core { opacity: 0; scale: 0.3; }
 
   @media (prefers-reduced-motion: reduce) { #badge.swap { animation: none; } #ring, #pointer * { transition: opacity 1ms; } }
 
