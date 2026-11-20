@@ -64,8 +64,9 @@ for (const well of wells) {
     const ok = await scrawl.invoke('bind:start', which);
     if (!ok) {
       setCaption('Allow Accessibility access first.', true, which);
-      $('access').classList.add('open');
-      shake($('access'));
+      const ask = well.closest('.page').querySelector('.access'); // the ask on this tool's own page
+      ask.classList.add('open');
+      shake(ask);
       return;
     }
     listening = which;
@@ -399,15 +400,12 @@ function updateStatus() {
   $('page').classList.toggle('off', !enabled);
   grantedChecks = trusted && !on ? grantedChecks + 1 : 0;
   const needsRestart = trusted && !on && grantedChecks >= 3;
-  $('access').classList.toggle('open', !on && (!trusted || needsRestart));
-  const btn = $('accessBtn');
-  if (needsRestart) {
-    btn.textContent = 'Restart Scrawl';
-    btn.onclick = () => scrawl.send('app:relaunch');
-  } else {
-    btn.textContent = 'Open Accessibility settings';
-    btn.onclick = () => scrawl.send('perm:open');
-  }
+  // Every tool page asks, until access is granted (or Pane needs a restart to pick it up).
+  document.querySelectorAll('.access').forEach((el) => el.classList.toggle('open', !on && (!trusted || needsRestart)));
+  document.querySelectorAll('.access-btn').forEach((btn) => {
+    btn.textContent = needsRestart ? 'Restart Pane' : 'Open Accessibility settings';
+    btn.onclick = () => scrawl.send(needsRestart ? 'app:relaunch' : 'perm:open');
+  });
   $('status').classList.toggle('ready', on && enabled);
   swapText($('statusText'), !enabled
     ? 'Off. Your keys work as normal.'

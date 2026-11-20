@@ -138,6 +138,8 @@
 .spin-wheel .bead-lip { fill: #0B1210; }
 .spin-wheel .bead-ring { fill: none; stroke: var(--accent); stroke-width: 2.4; opacity: 0; }
 .spin-wheel .bead.hot .bead-ring { opacity: 1; }
+.spin-wheel .bead.cur .bead-ring { opacity: 0.85; stroke: var(--mint, #7ED3A8); } /* the playlist that's on */
+.spin-wheel .bead.cur.hot .bead-ring { stroke: var(--accent); }
 .spin-wheel .bead.picked .disc { animation: spin-picked 380ms var(--bouncy); }
 @keyframes spin-picked { 40% { transform: scale(1.5); } }
 .spin-wheel .vinyl { fill: #18221F; }

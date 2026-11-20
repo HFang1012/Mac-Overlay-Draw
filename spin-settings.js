@@ -57,15 +57,135 @@ function renderApps() {
 }
 
 // ---------- the preview: Spin's wheel, small ----------
-let previewKey = '';
-function renderSpinPreview(np) {
-  const key = `${np?.state}|${np?.track?.id}|${np?.track?.art ? 1 : 0}`;
+let previewKey = '', spinPreviewNp = null, spinPreviewHot = -1;
+const spinLayout = (wheel = S.spin.wheel) => wheel.filter((x) => x.on).map((x) => x.id);
+function renderSpinPreview(np = spinPreviewNp, layout = spinLayout()) {
+  spinPreviewNp = np;
+  const key = `${np?.state}|${np?.track?.id}|${np?.track?.art ? 1 : 0}|${layout.join()}`;
   if (key === previewKey) return;
   const first = !previewKey;
   previewKey = key;
   const el = document.getElementById('spinPreview');
-  el.innerHTML = Spin.build({ size: 40, np, compact: true, enter: first });
-  Spin.setHover(el.querySelector('svg'), -1, { np, size: 40 });
+  el.innerHTML = Spin.build({ size: 40, np, compact: true, enter: first, layout });
+  Spin.setHover(el.querySelector('svg'), spinPreviewHot, { np, size: 40, layout });
+}
+function hoverSpinPreview(id) {
+  spinPreviewHot = id && spinLayout().includes(id) ? Spin.SLICE[id] : -1;
+  Spin.setHover(document.querySelector('#spinPreview svg'), spinPreviewHot, { np: spinPreviewNp, size: 40, layout: spinLayout() });
+}
+
+// ---------- the wheel's slices: click one off or on, drag to reorder ----------
+const slicesEl = document.getElementById('slices');
+const sliceEls = new Map();
+let sliceDrag = null; // { id, el, startX, grabX, moved, order }
+const SLICE_NAMES = { play: 'Play', next: 'Next', volume: 'Volume', prev: 'Previous', lists: 'Playlists' };
+const sliceGlyph = (id) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${Spin.ICONS[id]}</svg>`;
+const saveWheel = (wheel) => saveSpin({ wheel });
+function toggleSlice(id, el) {
+  const w = S.spin.wheel, x = w.find((s) => s.id === id);
+  if (x.on && w.filter((s) => s.on).length === 1) {
+    shake(el);
+    sliceHint('The wheel needs at least one slice.');
+    return;
+  }
+  saveWheel(w.map((s) => (s.id === id ? { ...s, on: !s.on } : s))).then(() => hoverSpinPreview(null));
+}
+let sliceHintTimer;
+function sliceHint(text) {
+  const p = document.getElementById('slicesHint');
+  p.textContent = text;
+  p.style.color = 'var(--accent-ink)';
+  clearTimeout(sliceHintTimer);
+  sliceHintTimer = setTimeout(() => { p.textContent = 'Click to take a slice off the wheel. Drag to reorder.'; p.style.color = ''; }, 2200);
+}
+function makeSliceTile(id, i) {
+  const el = document.createElement('div');
+  el.className = 'tile pop';
+  el.style.setProperty('--d', `${220 + i * 40}ms`);
+  el.tabIndex = 0;
+  el.setAttribute('role', 'switch');
+  el.innerHTML = `<span class="glyph">${sliceGlyph(id)}</span><span class="name">${SLICE_NAMES[id]}</span>` +
+    '<span class="check" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5.2l2 2L8 3" fill="none" stroke="#FBF8F3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+  el.addEventListener('keydown', (e) => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleSlice(id, el); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const w = [...S.spin.wheel], from = w.findIndex((s) => s.id === id), to = from + (e.key === 'ArrowLeft' ? -1 : 1);
+      if (to < 0 || to >= w.length) return;
+      w.splice(to, 0, w.splice(from, 1)[0]);
+      saveWheel(w).then(() => el.focus());
+    }
+  });
+  el.addEventListener('mouseenter', () => { if (!sliceDrag) hoverSpinPreview(id); });
+  el.addEventListener('mouseleave', () => { if (!sliceDrag) hoverSpinPreview(null); });
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || sliceDrag) return;
+    const r = el.getBoundingClientRect();
+    sliceDrag = { id, el, startX: e.clientX, startY: e.clientY, grabX: e.clientX - r.left, moved: false, order: S.spin.wheel.map((s) => s.id) };
+    try { slicesEl.setPointerCapture(e.pointerId); } catch {}
+  });
+  return el;
+}
+// All slice tiles are the same width, so a slot is just an index along the row.
+function sliceSlot(x) {
+  const r = slicesEl.getBoundingClientRect(), n = sliceEls.size;
+  const w = (r.width + 6) / n;
+  return { idx: Math.max(0, Math.min(n - 1, Math.round((x - r.left) / w))), left: (k) => r.left + k * w };
+}
+addEventListener('pointermove', (e) => {
+  const d = sliceDrag;
+  if (!d) return;
+  const dy = e.clientY - d.startY;
+  if (!d.moved) {
+    if (Math.hypot(e.clientX - d.startX, dy) < 5) return;
+    d.moved = true;
+    d.el.classList.add('dragging');
+  }
+  const x = e.clientX - d.grabX;
+  const slot = sliceSlot(x);
+  if (slot.idx !== d.order.indexOf(d.id)) {
+    d.order.splice(slot.idx, 0, d.order.splice(d.order.indexOf(d.id), 1)[0]);
+    arrangeSlices(d.order, d.id);
+    renderSpinPreview(undefined, d.order.filter((id) => S.spin.wheel.find((s) => s.id === id).on));
+  }
+  d.el.style.translate = `${x - slot.left(d.order.indexOf(d.id))}px ${dy * 0.3}px`;
+});
+function endSliceDrag(e) {
+  const d = sliceDrag;
+  if (!d) return;
+  sliceDrag = null;
+  const under = e.clientX != null ? document.elementFromPoint(e.clientX, e.clientY) : null;
+  if (!d.moved) { if (e.type === 'pointerup' && d.el.contains(under)) toggleSlice(d.id, d.el); return; }
+  const from = d.el.style.translate || '0px 0px';
+  d.el.style.translate = '';
+  d.el.classList.remove('dragging');
+  d.el.animate([{ translate: from }, { translate: '0px 0px' }], { duration: 480, easing: BOUNCY });
+  if (d.order.join() !== S.spin.wheel.map((s) => s.id).join()) saveWheel(d.order.map((id) => S.spin.wheel.find((s) => s.id === id)));
+}
+addEventListener('pointerup', endSliceDrag);
+addEventListener('pointercancel', endSliceDrag);
+addEventListener('blur', () => endSliceDrag({ type: 'blur' }));
+// FLIP: move the nodes, then slide each tile from where it was.
+function arrangeSlices(ids, skip = null) {
+  const before = new Map([...sliceEls].map(([id, el]) => [id, el.getBoundingClientRect().left]));
+  ids.forEach((id) => slicesEl.appendChild(sliceEls.get(id)));
+  for (const [id, el] of sliceEls) {
+    if (id === skip) continue;
+    const dx = before.get(id) - el.getBoundingClientRect().left;
+    if (Math.abs(dx) > 1) el.animate([{ translate: `${dx}px 0` }, { translate: '0 0' }], { duration: 440, easing: BOUNCY });
+  }
+}
+function renderSlices() {
+  const w = S.spin.wheel;
+  w.forEach((s, i) => {
+    if (!sliceEls.has(s.id)) { const el = makeSliceTile(s.id, i); sliceEls.set(s.id, el); slicesEl.appendChild(el); }
+    const el = sliceEls.get(s.id);
+    el.classList.toggle('on', s.on);
+    el.setAttribute('aria-checked', s.on);
+    el.setAttribute('aria-label', `${SLICE_NAMES[s.id]}: ${s.on ? 'on' : 'off'} the wheel, position ${i + 1}. Arrow keys move it.`);
+  });
+  const current = [...slicesEl.children].map((el) => [...sliceEls].find(([, x]) => x === el)[0]);
+  if (!sliceDrag && current.join() !== w.map((s) => s.id).join()) arrangeSlices(w.map((s) => s.id));
 }
 
 // ---------- now playing: proof the link works, or what's missing ----------
@@ -250,6 +370,8 @@ let spinStarted = false;
 function updateSpin() {
   if (!S?.spin) return;
   renderApps();
+  renderSlices();
+  if (spinStarted) renderSpinPreview();
   updateSpinStatus();
   if (!spinStarted) {
     spinStarted = true;

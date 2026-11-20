@@ -41,6 +41,7 @@ const STATE = {
     if (!s.running()) return JSON.stringify({ running: false });
     const out = { running: true, state: String(s.playerState()), volume: s.soundVolume() };
     try { out.shuffle = s.shuffling(); } catch (e) {}
+    try { out.repeat = s.repeating() ? 'context' : 'off'; } catch (e) {}
     try {
       const t = s.currentTrack();
       out.track = { title: t.name(), artist: t.artist(), album: t.album(), id: t.id(), art: t.artworkUrl() };
@@ -52,6 +53,7 @@ const STATE = {
     if (!m.running()) return JSON.stringify({ running: false });
     const out = { running: true, state: String(m.playerState()), volume: m.soundVolume() };
     try { out.shuffle = m.shuffleEnabled(); } catch (e) {}
+    try { out.repeat = String(m.songRepeat()); } catch (e) {} // 'off' | 'one' | 'all'
     try {
       const t = m.currentTrack();
       out.track = { title: t.name(), artist: t.artist(), album: t.album(), id: t.persistentID() };
@@ -159,10 +161,16 @@ async function musicList(np) {
       items: out.names.map((title, i) => ({ title, artist: out.artists[i], id: out.ids[i], pos: i })),
     };
   }
-  const items = musicLists.items;
-  const index = items.findIndex((t) => t.id === np.track.id);
-  if (index < 0) return null;
-  return { source: 'music', name: np.playlist.name, playlistId: np.playlist.id, items, index };
+  const all = musicLists.items;
+  const i = all.findIndex((t) => t.id === np.track.id);
+  if (i < 0) return null;
+  // Repeating the playlist: what comes after the last song is the first one again, and before the
+  // first, the last. Unrolled into one straight list, each song once either way.
+  const loop = np.repeat === 'all' && all.length > 1;
+  const after = loop ? [...all.slice(i + 1), ...all.slice(0, i)] : all.slice(i + 1);
+  const before = loop ? [...all.slice(i + 1), ...all.slice(0, i)] : all.slice(0, i);
+  const items = [...before, all[i], ...after];
+  return { source: 'music', name: np.playlist.name, playlistId: np.playlist.id, items, index: before.length, loop };
 }
 // Music hands over the cover as raw image data; Pane writes it to a file once per song.
 async function musicArtwork(id) {
@@ -264,8 +272,9 @@ async function playAt(appId, list, at) {
   if (!item) return;
   const ahead = at - list.index;
   try {
-    if (ahead > 0 && ahead <= SKIP_MAX && !cache.np?.shuffle && list.source !== 'music') {
-      // A few songs ahead in order: skipping lands on the same song without Spotify jumping forward.
+    if (list.source === 'spotify' && item.skip === ahead && ahead > 0 && ahead <= SKIP_MAX) {
+      // A few songs ahead in Spotify's queue: skipping lands on it and keeps the queue (and the
+      // playlist) as they are, without Spotify jumping forward.
       await osa(skip('Spotify', ahead));
     } else await keepFront(appId, () => playOne(list, item, ahead));
   } catch (err) {
@@ -280,12 +289,13 @@ async function playOne(list, item, ahead) {
       const p = m.playlists.whose({ persistentID: ${lit(list.playlistId)} })[0];
       m.play(p.tracks[${Number(item.pos)}]);
     })()`);
-  } else if (list.source === 'spotify-context') {
-    await osa(`Application('Spotify').playTrack(${lit(item.uri)}, { inContext: ${lit(list.context)} })`);
-  } else if (list.source === 'spotify-queue') {
-    if (ahead > 0 && ahead <= 30) {
-      // Spotify can't jump into its queue, but skipping keeps the queue as it is.
+  } else if (list.source === 'spotify') {
+    if (item.skip === ahead && ahead > 0 && ahead <= 30) {
+      // Further into the queue: Spotify can't jump there, but skipping keeps the queue as it is.
       await osa(skip('Spotify', ahead), { timeout: 15000 });
+    } else if (item.ctx && list.context) {
+      // A song of the playlist or album: play it there, so the rest of it follows.
+      await osa(`Application('Spotify').playTrack(${lit(item.uri)}, { inContext: ${lit(list.context)} })`);
     } else {
       await osa(`Application('Spotify').playTrack(${lit(item.uri)})`);
     }
@@ -519,26 +529,78 @@ async function contextTracks(ctx) {
   return items;
 }
 
+/**
+ * Spotify's whole list, as it will really play.
+ *  Coming: Spotify's own queue first (songs you queued, the playlist's next songs and, once the
+ *  playlist runs out without repeat, Spotify's suggestions). Past the queue, the rest of the
+ *  playlist or album, around again from the top when it repeats.
+ *  Played: in order, the playlist's earlier songs (around from the end when it repeats); shuffled
+ *  or with no playlist, what you recently played.
+ * Each song says how to reach it: `skip` (that many skips through the queue), `ctx` (play it within
+ * the playlist) or neither (play it on its own). `tag` marks queued songs and suggestions.
+ */
 async function spotifyList(np) {
   if (!spotifyAccount().connected || !np.track) return null;
-  const now = await api('/me/player/currently-playing').catch(() => null);
-  const ctx = now?.context;
-  spotifyNowCtx = ctx?.uri || null;
-  // In order, the playlist or album is the list. Shuffled, Spotify's queue is the truth.
-  if (ctx?.uri && !np.shuffle && (ctx.type === 'playlist' || ctx.type === 'album')) {
-    const items = await contextTracks(ctx).catch(() => null);
-    const index = items ? items.findIndex((t) => t.uri === np.track.id) : -1;
-    if (index >= 0) return { source: 'spotify-context', context: ctx.uri, items, index };
-  }
-  const [queue, recent] = await Promise.all([
+  const [player, queue] = await Promise.all([
+    api('/me/player').catch(() => null),
     api('/me/player/queue').catch(() => null),
-    api('/me/player/recently-played?limit=30').catch(() => null),
   ]);
-  const past = (recent?.items || []).map((x) => fmt(x.track)).filter(Boolean).reverse();
-  if (past.length && past[past.length - 1].uri === np.track.id) past.pop(); // the song that's on now
-  const current = fmt(queue?.currently_playing || now?.item) || { title: np.track.title, artist: np.track.artist, art: np.track.art, uri: np.track.id };
-  const coming = (queue?.queue || []).map((t) => fmt(t)).filter(Boolean);
-  return { source: 'spotify-queue', items: [...past, current, ...coming], index: past.length };
+  const ctx = player?.context;
+  spotifyNowCtx = ctx?.uri || null;
+  const shuffle = player?.shuffle_state ?? !!np.shuffle;
+  const repeat = player?.repeat_state || np.repeat || 'off';
+  const C = ctx?.uri && (ctx.type === 'playlist' || ctx.type === 'album') ? await contextTracks(ctx).catch(() => null) : null;
+  const N = C?.length || 0;
+  const ci = C ? C.findIndex((t) => t.uri === np.track.id) : -1;
+  const ordered = C && ci >= 0 && !shuffle; // the playlist's order is the order things play in
+  const loops = ordered && repeat === 'context' && N > 1;
+  const current = fmt(queue?.currently_playing || player?.item) || { title: np.track.title, artist: np.track.artist, art: np.track.art, uri: np.track.id };
+
+  // Coming up: the queue, in Spotify's order. Walk the playlist alongside it to tell its songs
+  // from ones you queued, and from Spotify's suggestions once the playlist has ended.
+  const up = [];
+  let p = ci; // where in the playlist the queue has reached
+  let ended = ordered && !loops && ci === N - 1;
+  (queue?.queue || []).forEach((t, j) => {
+    const item = fmt(t);
+    if (!item?.uri) return;
+    item.skip = j + 1;
+    if (ordered && !ended) {
+      const nextAt = loops ? (p + 1) % N : p + 1;
+      if (nextAt < N && C[nextAt].uri === item.uri) {
+        p = nextAt;
+        item.ctx = true;
+        if (!loops && p === N - 1) ended = true;
+      } else item.tag = 'Queued';
+    } else if (ended) item.tag = 'Suggested';
+    else if (C && !C.some((x) => x.uri === item.uri)) item.tag = shuffle ? 'Queued' : 'Suggested';
+    up.push(item);
+  });
+  // Past what the queue shows: the rest of the playlist, around again if it repeats.
+  if (ordered && !ended) {
+    const shown = new Set();
+    for (let k = p + 1; ; k++) {
+      if (!loops && k >= N) break;
+      const at = k % N;
+      if (at === ci || shown.has(at) || up.length >= 1000) break;
+      shown.add(at);
+      up.push({ ...C[at], ctx: true });
+    }
+  }
+
+  // Played before: the playlist backwards from here (around from its end if it repeats), else history.
+  let back = [];
+  if (ordered) {
+    for (let k = ci - 1; k > ci - N; k--) {
+      if (!loops && k < 0) break;
+      back.push({ ...C[((k % N) + N) % N], ctx: true });
+    }
+  } else {
+    const recent = await api('/me/player/recently-played?limit=50').catch(() => null);
+    back = (recent?.items || []).map((x) => fmt(x.track)).filter(Boolean);
+    if (back.length && back[0].uri === np.track.id) back.shift(); // the song that's on now
+  }
+  return { source: 'spotify', context: ctx?.uri || null, items: [...back.reverse(), current, ...up], index: back.length, loop: loops };
 }
 
 module.exports = { playlists, playPlaylist, keepFront, frontBundle, APPS, refresh, snapshot, onChange, act, playAt, connectSpotify, disconnectSpotify, spotifyAccount, REDIRECT };

@@ -1,8 +1,11 @@
 // Spin's wheel: one module shared by the overlay, the settings preview and the main process
 // (for hit-testing), like Scrawl's wheel.js.
 //
-// Four slices: play/pause on top, next on the right, volume at the bottom, previous on the left.
-// Pointing at next (or previous) fans the coming (or past) songs out beside it as little records.
+// Slices: play/pause, next, volume, previous and playlists, in the order (and with the ones) you choose.
+// They share the circle evenly, starting at the top. The default is play on top, next on the right,
+// volume at the bottom, previous on the left.
+// Pointing at next (or previous) fans the coming (or past) songs out beside it as little records;
+// pointing at playlists fans out your playlists the same way.
 // Past the last record is the edge: rest there and the list scrolls on through the queue or playlist.
 // Under the volume slice an arc comes out; slide along it to set the volume.
 // The middle cancels: going back there puts the list and the volume back where they were.
@@ -15,31 +18,60 @@
     volume: '<path d="M4.5 9.5h3.2L12 5.6v12.8l-4.3-3.9H4.5z"/><path d="M15.6 9.2a4 4 0 0 1 0 5.6"/><path d="M18.4 6.6a7.6 7.6 0 0 1 0 10.8"/>',
     chevron: '<path d="M6.5 9l5.5 5.5L17.5 9" stroke-width="3"/>',
     note: '<path d="M9.5 17.5V6.5l9-2v11"/><circle cx="7" cy="17.5" r="2.5"/><circle cx="16" cy="15.5" r="2.5"/>',
+    lists: '<path d="M4 6.5h11"/><path d="M4 11.5h11"/><path d="M4 16.5h6"/><path d="M17.5 18.5v-8l3.5-1"/><circle cx="15.6" cy="18.5" r="1.9"/>',
   };
 
-  // Top, right, bottom, left.
+  // Every slice there can be. A slice's code (its place in this list) is its hover code, wherever it sits.
   const SLICES = [
     { id: 'play', name: 'Play / pause' },
     { id: 'next', name: 'Next' },
     { id: 'volume', name: 'Volume' },
     { id: 'prev', name: 'Previous' },
+    { id: 'lists', name: 'Playlists' },
   ];
-  const SLICE = { play: 0, next: 1, volume: 2, prev: 3 };
+  const SLICE = { play: 0, next: 1, volume: 2, prev: 3, lists: 4 };
+  const DEFAULT_LAYOUT = ['play', 'next', 'volume', 'prev']; // top, right, bottom, left
+  const ALL_SLICES = SLICES.map((x) => x.id);
 
-  // Hover codes. -1 is the middle, 0..3 the slices.
+  // Hover codes. -1 is the middle, 0..4 the slices (by SLICE code).
   const UP = 100, UP_MORE = 150, UP_LESS = 151; // coming songs: UP + k is the k-th record
   const BACK = 200, BACK_MORE = 250, BACK_LESS = 251; // songs already played
   const VOL = 300; // VOL + 0..100
+  const PL = 400, PL_MORE = 450, PL_LESS = 451; // playlists
+  const isSlice = (h) => h != null && h >= 0 && h < SLICES.length;
   const isUp = (h) => h >= UP && h <= UP_LESS;
   const isBack = (h) => h >= BACK && h <= BACK_LESS;
+  const isPl = (h) => h >= PL && h <= PL_LESS;
   const isVol = (h) => h >= VOL && h <= VOL + 100;
-  const isBead = (h) => (h >= UP && h < UP_MORE) || (h >= BACK && h < BACK_MORE);
-  // Which slice a hover belongs to (records belong to next / previous, the arc to volume).
-  const sliceOf = (h) => (h == null || h < 0 ? h : h < 4 ? h : isUp(h) ? SLICE.next : isBack(h) ? SLICE.prev : isVol(h) ? SLICE.volume : null);
+  const isBead = (h) => (h >= UP && h < UP_MORE) || (h >= BACK && h < BACK_MORE) || (h >= PL && h < PL_MORE);
+  // Which slice a hover belongs to (records belong to next / previous / playlists, the arc to volume).
+  const sliceOf = (h) => (h == null || h < 0 ? h : isSlice(h) ? h : isUp(h) ? SLICE.next : isBack(h) ? SLICE.prev : isPl(h) ? SLICE.lists : isVol(h) ? SLICE.volume : null);
+  // The records on each side, and the slice they come out of.
+  const SIDES = { up: { slice: 'next', base: UP }, back: { slice: 'prev', base: BACK }, pl: { slice: 'lists', base: PL } };
+  const sideOf = (h) => (isUp(h) ? 'up' : isBack(h) ? 'back' : isPl(h) ? 'pl' : null);
 
-  const VSPAN = (70 * Math.PI) / 180; // the volume arc, centred under the wheel
-  const V0 = Math.PI / 2 + VSPAN / 2; // 0% (lower left)
+  const VSPAN = (70 * Math.PI) / 180; // the volume arc, centred beyond the volume slice
   const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+
+  /** The slices in `layout` (ids), each with its code and the angle of its middle. Top first, clockwise. */
+  const lay = (layout) => (layout && layout.length ? layout : DEFAULT_LAYOUT);
+  function layoutOf(layout) {
+    const ids = lay(layout), n = ids.length;
+    return ids.map((id, i) => ({ id, code: SLICE[id], mid: -Math.PI / 2 + (i * Math.PI * 2) / n, half: Math.PI / n }));
+  }
+  /** The middle of a slice (by code), or null if it isn't on the wheel. */
+  function sliceMid(code, layout) {
+    const x = layoutOf(layout).find((s) => s.code === code);
+    return x ? x.mid : null;
+  }
+  // Records run down the wheel: clockwise on the right half, counter-clockwise on the left;
+  // left to right along the top and bottom.
+  function sideDir(side, layout) {
+    const c = sliceMid(SLICE[SIDES[side].slice], layout) ?? 0;
+    const x = Math.cos(c);
+    return x > 0.01 ? 1 : x < -0.01 ? -1 : Math.sin(c) < 0 ? 1 : -1;
+  }
+  const V0 = (layout) => (sliceMid(SLICE.volume, layout) ?? Math.PI / 2) + VSPAN / 2; // 0%
 
   // Record-label colors for songs without cover art.
   const LABELS = ['#FFC94D', '#7ED3A8', '#F49CB0', '#A9C1EC', '#FF9C78', '#B9A5F4'];
@@ -64,48 +96,47 @@
     return { R, r, hubR, depth, press: depth * 0.7, beadR, rc, step, vw, rv, outer, box, cx: box / 2, cy: pad + outer };
   }
 
-  /** Where the k-th record sits. Coming songs run down the right side, past songs down the left. */
-  function beadAngle(side, k, count, step) {
+  /** Where the k-th record of a side sits: fanned out around its slice. */
+  function beadAngle(side, k, count, step, layout) {
     const spread = (count - 1) * step;
-    return side === 'up' ? -spread / 2 + k * step : Math.PI + spread / 2 - k * step;
+    const c = sliceMid(SLICE[SIDES[side].slice], layout) ?? (side === 'back' ? Math.PI : 0);
+    const dir = sideDir(side, layout);
+    return c - (dir * spread) / 2 + dir * k * step;
   }
-  const volAngle = (v) => V0 - (Math.max(0, Math.min(100, v)) / 100) * VSPAN;
+  const volAngle = (v, layout) => V0(layout) - (Math.max(0, Math.min(100, v)) / 100) * VSPAN;
 
-  function sliceAt(angle) {
+  function sliceAt(angle, layout) {
+    const L = layoutOf(layout), n = L.length;
     const t = angle + Math.PI / 2; // top is 0
-    return ((Math.round(t / (Math.PI / 2)) % 4) + 4) % 4;
+    const i = ((Math.round(t / ((Math.PI * 2) / n)) % n) + n) % n;
+    return L[i].code;
   }
 
   /**
    * What's under an offset from the wheel's centre. `ctx` says what's there to point at:
-   * { prev, up, back, upMore, upLess, backMore, backLess } (counts of records shown and which edges
-   * can scroll). Once you're on the records or the volume arc it holds you a little, so sliding past
-   * an end clamps instead of jumping somewhere else.
+   * { prev, layout, up, back, pl, upMore, upLess, backMore, backLess, plMore, plLess } (counts of
+   * records shown and which edges can scroll). Once you're on a slice's records or the volume arc it
+   * holds you a little, so sliding past an end clamps instead of jumping somewhere else.
    */
   function hitTest(size, count, dx, dy, ctx = {}) {
     const m = metrics(size);
+    const layout = lay(ctx.layout);
     const d = Math.hypot(dx, dy);
     if (d < m.hubR + 2) return -1;
-    const angle = Math.atan2(dy, dx);
-    if (d <= m.R + 2) return sliceAt(angle);
+    const a = Math.atan2(dy, dx);
+    if (d <= m.R + 2) return sliceAt(a, layout);
 
-    const prev = ctx.prev ?? -1;
-    const onVol = isVol(prev) || prev === SLICE.volume;
-    const onUp = isUp(prev) || prev === SLICE.next;
-    const onBack = isBack(prev) || prev === SLICE.prev;
-
-    const volFrom = (a, slack) => {
-      const t = (V0 - a) / VSPAN;
+    const volFrom = (slack) => {
+      const t = wrap(V0(layout) - a) / VSPAN;
       if (t < -slack || t > 1 + slack) return null;
       return VOL + Math.round(Math.max(0, Math.min(1, t)) * 100);
     };
-    const beadFrom = (side, a, sticky) => {
-      const n = side === 'up' ? ctx.up || 0 : ctx.back || 0;
-      const more = side === 'up' ? ctx.upMore : ctx.backMore;
-      const less = side === 'up' ? ctx.upLess : ctx.backLess;
-      const base = side === 'up' ? UP : BACK;
-      const a0 = beadAngle(side, 0, count, m.step);
-      const rel = side === 'up' ? wrap(a - a0) : wrap(a0 - a);
+    const beadFrom = (side, sticky) => {
+      const n = ctx[side] || 0;
+      const more = ctx[`${side}More`], less = ctx[`${side}Less`];
+      const base = SIDES[side].base;
+      const a0 = beadAngle(side, 0, count, m.step, layout);
+      const rel = sideDir(side, layout) * wrap(a - a0);
       const k = Math.round(rel / m.step);
       if (d > m.rc + m.beadR + (sticky ? 70 : 22)) return null;
       if (k >= count && k <= count + (sticky ? 3 : 1)) return more ? base + 50 : n ? base + n - 1 : null;
@@ -114,17 +145,18 @@
       if (k === -1 || (sticky && k === -2)) return less ? base + 51 : null;
       return null;
     };
-
-    const a = angle;
-    let h = null;
-    if (onVol && d < m.rv + 60) h = volFrom(a, 0.45);
-    else if (onUp) h = beadFrom('up', a, true);
-    else if (onBack) h = beadFrom('back', a, true);
+    // What comes out of a slice: the volume arc, or its records.
+    const outOf = (code, sticky) => {
+      if (code == null || code < 0 || !layout.includes(ALL_SLICES[code])) return null;
+      if (code === SLICE.volume) return d < m.rv + (sticky ? 60 : 26) ? volFrom(sticky ? 0.45 : 0) : null;
+      const side = Object.keys(SIDES).find((k) => SLICE[SIDES[k].slice] === code);
+      return side ? beadFrom(side, sticky) : null;
+    };
+    // Hold on to the slice you came from; otherwise, whatever comes out of the slice in this direction.
+    const h = outOf(sliceOf(ctx.prev ?? -1), true);
     if (h != null) return h;
-    if (d < m.rv + 26) h = volFrom(a, 0);
-    if (h == null) h = beadFrom('up', a, false);
-    if (h == null) h = beadFrom('back', a, false);
-    return h ?? sliceAt(angle);
+    const under = sliceAt(a, layout);
+    return outOf(under, false) ?? under;
   }
 
   // ---------- drawing ----------
@@ -154,14 +186,17 @@
   }
 
   /** The records on one side, plus the edge nubs that scroll. Goes inside <g class="beads" data-side>. */
-  function beads(size, count, side, items, { more = false, less = false } = {}) {
+  function beads(size, count, side, items, { more = false, less = false, layout, current = null } = {}) {
     const m = metrics(size);
     const { cx, cy, rc, beadR, step } = m;
     const nub = (k, dir) => {
-      const a = beadAngle(side, k, count, step);
+      const a = beadAngle(side, k, count, step, layout);
       const x = cx + rc * Math.cos(a), y = cy + rc * Math.sin(a);
-      // Both lists run down the wheel's sides: the chevron points down for "more", up for "back toward now".
-      const rot = dir > 0 ? 0 : 180;
+      // The chevron points the way the list runs: down the sides (left to right along the top or bottom)
+      // for "more", the other way for "back toward now".
+      const c = sliceMid(SLICE[SIDES[side].slice], layout) ?? 0;
+      const runsDown = Math.abs(Math.cos(c)) > 0.01;
+      const rot = runsDown ? (dir > 0 ? 0 : 180) : (dir > 0 ? -90 : 90);
       const nr = beadR * 0.72;
       return `<g class="nub ${dir > 0 ? 'more' : 'less'}" style="--k:${Math.max(0, k)}">` +
         `<circle class="nub-edge" cx="${x.toFixed(2)}" cy="${(y + 2).toFixed(2)}" r="${nr.toFixed(2)}"/>` +
@@ -170,9 +205,10 @@
     };
     let out = '';
     items.forEach((item, k) => {
-      const a = beadAngle(side, k, count, step);
+      const a = beadAngle(side, k, count, step, layout);
       const x = cx + rc * Math.cos(a), y = cy + rc * Math.sin(a);
-      out += `<g class="bead" data-k="${k}" style="--k:${k}">` +
+      const cur = current != null && item?.id === current ? ' cur' : '';
+      out += `<g class="bead${cur}" data-k="${k}" style="--k:${k}">` +
         `<circle class="bead-lip" cx="${x.toFixed(2)}" cy="${(y + 2.2).toFixed(2)}" r="${beadR.toFixed(2)}"/>` +
         `${disc(item, x, y, beadR)}<circle class="bead-ring" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${(beadR + 3.2).toFixed(2)}"/></g>`;
     });
@@ -182,41 +218,43 @@
   }
 
   /** Builds the wheel SVG. Records and the hover state are filled in later (beads(), setHover()). */
-  function build({ size = 76, count = 5, np = null, enter = true, compact = false }) {
+  function build({ size = 76, count = 5, np = null, enter = true, compact = false, layout }) {
     const m = metrics(size, compact);
     const { R, r, hubR, depth, press, box, cx, cy, rv, vw } = m;
     const gap = Math.max(2.2, size * 0.03);
     const pt = (rad, a) => `${(cx + rad * Math.cos(a)).toFixed(2)},${(cy + rad * Math.sin(a)).toFixed(2)}`;
     const playing = np?.state === 'playing';
     let slices = '';
-    SLICES.forEach(({ id }, i) => {
-      const mid = -Math.PI / 2 + i * (Math.PI / 2);
-      const start = mid - Math.PI / 4, end = mid + Math.PI / 4;
+    const L = layoutOf(layout);
+    L.forEach(({ id, code, mid, half }, i) => {
+      const start = mid - half, end = mid + half;
       const a0 = start + gap / R, a1 = end - gap / R, b0 = start + gap / r, b1 = end - gap / r;
-      const d = `M${pt(R, a0)}A${R},${R} 0 0 1 ${pt(R, a1)}L${pt(r, b1)}A${r},${r} 0 0 0 ${pt(r, b0)}Z`;
-      const ir = (R + r) / 2, iconSize = Math.max(13, size * 0.25);
+      const big = half * 2 - gap / R * 2 > Math.PI ? 1 : 0;
+      const d = `M${pt(R, a0)}A${R},${R} 0 ${big} 1 ${pt(R, a1)}L${pt(r, b1)}A${r},${r} 0 ${big} 0 ${pt(r, b0)}Z`;
+      const ir = (R + r) / 2, iconSize = Math.max(13, size * (L.length > 4 ? 0.23 : 0.25));
       const ix = cx + ir * Math.cos(mid), iy = cy + ir * Math.sin(mid);
       const name = id === 'play' ? (playing ? 'pause' : 'play') : id;
-      slices += `<g class="slice" data-i="${i}" data-id="${id}" style="--i:${i}">` +
+      slices += `<g class="slice" data-i="${code}" data-id="${id}" style="--i:${i}">` +
         `<path class="edge" d="${d}" transform="translate(0 ${depth})"/>` +
         `<g class="face"><path class="top" d="${d}"/>${iconGroup(name, ix, iy, iconSize, 'ico')}</g></g>`;
     });
 
     // The volume arc, under the wheel: a track, the filled part, and a knob.
     let vol = '';
-    if (!compact) {
-      const arc = `M${pt(rv, V0)}A${rv},${rv} 0 0 0 ${pt(rv, V0 - VSPAN)}`;
+    if (!compact && L.some((x) => x.id === 'volume')) {
+      const v0 = V0(layout);
+      const arc = `M${pt(rv, v0)}A${rv},${rv} 0 0 0 ${pt(rv, v0 - VSPAN)}`;
       vol = `<g class="vol">` +
         `<path class="vol-lip" d="${arc}" transform="translate(0 2.5)" stroke-width="${vw.toFixed(2)}"/>` +
         `<path class="vol-track" d="${arc}" stroke-width="${vw.toFixed(2)}"/>` +
         `<path class="vol-fill" d="${arc}" pathLength="100" stroke-width="${vw.toFixed(2)}" stroke-dasharray="0 100"/>` +
-        `<circle class="vol-knob" r="${(vw * 0.9).toFixed(2)}" cx="${pt(rv, V0).split(',')[0]}" cy="${pt(rv, V0).split(',')[1]}"/></g>`;
+        `<circle class="vol-knob" r="${(vw * 0.9).toFixed(2)}" cx="${pt(rv, v0).split(',')[0]}" cy="${pt(rv, v0).split(',')[1]}"/></g>`;
     }
 
     // The middle: the song that's on, as a record that turns while it plays. Pointing at a slice
     // swaps in that slice's icon; at a record, that song; at the volume arc, the number.
     const hubIcon = Math.max(14, hubR * 1.05);
-    const hubIcons = ['play', 'pause', 'next', 'prev', 'volume'].map((n) => iconGroup(n, cx, cy, hubIcon, 'hub-ico', `data-icon="${n}"`)).join('');
+    const hubIcons = ['play', 'pause', 'next', 'prev', 'volume', 'lists'].map((n) => iconGroup(n, cx, cy, hubIcon, 'hub-ico', `data-icon="${n}"`)).join('');
     const hub =
       `<g class="hub"><circle class="hub-edge" cx="${cx}" cy="${cy + depth * 0.7}" r="${hubR}"/>` +
       `<g class="hub-face"><circle class="hub-top" cx="${cx}" cy="${cy}" r="${hubR}"/>` +
@@ -228,11 +266,11 @@
       `style="--cx:${cx}px;--cy:${cy}px;--press:${press}px" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Music wheel">` +
       `<defs><clipPath id="spinClip" clipPathUnits="objectBoundingBox"><circle cx="0.5" cy="0.5" r="0.5"/></clipPath></defs>` +
       `${vol}<g class="wheel-body">${slices}</g>` +
-      `<g class="beads" data-side="back"></g><g class="beads" data-side="up"></g>${hub}</svg>`;
+      `<g class="beads" data-side="back"></g><g class="beads" data-side="up"></g><g class="beads" data-side="pl"></g>${hub}</svg>`;
   }
 
   /**
-   * Shows what you're pointing at. `st` = { view, volume, np, size, count }.
+   * Shows what you're pointing at. `st` = { view, volume, np, size, count, layout }.
    * The records for a side show while you point at its slice or its records.
    */
   function setHover(svg, hover, st = {}) {
@@ -241,9 +279,11 @@
     svg.querySelectorAll('.slice').forEach((g) => g.classList.toggle('hot', slice != null && slice >= 0 && Number(g.dataset.i) === slice));
     svg.querySelector('.hub')?.classList.toggle('hot', false);
     const up = svg.querySelector('.beads[data-side="up"]'), back = svg.querySelector('.beads[data-side="back"]');
+    const pl = svg.querySelector('.beads[data-side="pl"]');
     up?.classList.toggle('show', slice === SLICE.next);
     back?.classList.toggle('show', slice === SLICE.prev);
-    for (const [g, base] of [[up, UP], [back, BACK]]) {
+    pl?.classList.toggle('show', slice === SLICE.lists);
+    for (const [g, base] of [[up, UP], [back, BACK], [pl, PL]]) {
       g?.querySelectorAll('.bead').forEach((b) => b.classList.toggle('hot', hover === base + Number(b.dataset.k)));
       g?.querySelector('.nub.more')?.classList.toggle('hot', hover === base + 50);
       g?.querySelector('.nub.less')?.classList.toggle('hot', hover === base + 51);
@@ -258,7 +298,7 @@
     if (volEl && v != null) {
       volEl.querySelector('.vol-fill').setAttribute('stroke-dasharray', `${Math.max(0.01, v)} 100`);
       const m = metrics(st.size || 76);
-      const a = volAngle(v);
+      const a = volAngle(v, st.layout);
       const knob = volEl.querySelector('.vol-knob');
       knob.setAttribute('cx', (m.cx + m.rv * Math.cos(a)).toFixed(2));
       knob.setAttribute('cy', (m.cy + m.rv * Math.sin(a)).toFixed(2));
@@ -266,15 +306,17 @@
 
     // The middle.
     const playing = st.np?.state === 'playing';
-    const sliceIcon = hover >= 0 && hover < 4 ? (hover === 0 ? (playing ? 'pause' : 'play') : SLICES[hover].id) : null;
-    const icon = sliceIcon || (hover === UP_MORE || hover === UP_LESS ? 'next' : hover === BACK_MORE || hover === BACK_LESS ? 'prev' : null);
+    const sliceIcon = isSlice(hover) ? (hover === 0 ? (playing ? 'pause' : 'play') : SLICES[hover].id) : null;
+    const icon = sliceIcon || (hover === UP_MORE || hover === UP_LESS ? 'next' : hover === BACK_MORE || hover === BACK_LESS ? 'prev'
+      : hover === PL_MORE || hover === PL_LESS ? 'lists' : null);
     svg.querySelectorAll('.hub-ico').forEach((g) => g.classList.toggle('on', g.dataset.icon === icon));
     const volText = svg.querySelector('.hub-vol');
     const showNum = showVol && !sliceIcon;
     volText.textContent = showNum && v != null ? String(Math.round(v)) : '';
     volText.classList.toggle('on', showNum);
     const pick = svg.querySelector('.hub-pick');
-    const item = isBead(hover) ? (isUp(hover) ? st.view?.up?.[hover - UP] : st.view?.back?.[hover - BACK]) : null;
+    const side = sideOf(hover);
+    const item = isBead(hover) ? st.view?.[side]?.[hover - SIDES[side].base] : null;
     const key = item ? `${hover}:${item.at}` : '';
     if (pick.dataset.key !== key) {
       pick.dataset.key = key;
@@ -286,8 +328,8 @@
   }
 
   const api = {
-    ICONS, SLICES, SLICE, UP, UP_MORE, UP_LESS, BACK, BACK_MORE, BACK_LESS, VOL,
-    isUp, isBack, isVol, isBead, sliceOf, metrics, beadAngle, volAngle, hitTest, build, beads, setHover, disc, labelColor,
+    ICONS, SLICES, SLICE, SIDES, DEFAULT_LAYOUT, ALL_SLICES, UP, UP_MORE, UP_LESS, BACK, BACK_MORE, BACK_LESS, VOL, PL, PL_MORE, PL_LESS,
+    isSlice, isUp, isBack, isPl, isVol, isBead, sliceOf, sideOf, layoutOf, sliceMid, sideDir, metrics, beadAngle, volAngle, hitTest, build, beads, setHover, disc, labelColor, iconGroup,
   };
   if (typeof window !== 'undefined') window.Spin = api;
   if (typeof module !== 'undefined') module.exports = api;

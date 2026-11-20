@@ -39,11 +39,22 @@ const DEFAULTS = {
     app: 'spotify', // 'spotify' | 'music' | 'other' (any player, through the media keys)
     count: 5, // songs shown each way
     size: 76, // the music wheel's own size, apart from Scrawl's (one of WHEEL_SIZES)
+    // The music wheel's slices, top first and clockwise. Off ones keep their place for when they come back.
+    wheel: [{ id: 'play', on: true }, { id: 'next', on: true }, { id: 'volume', on: true }, { id: 'prev', on: true }, { id: 'lists', on: true }],
     enabled: true,
   },
 };
 const SPIN_COUNTS = [3, 4, 5, 6];
 const WHEEL_SIZES = [60, 76, 96]; // small, medium, large (outer radius, px)
+// Every slice once, in the saved order (new ones go on the end), and at least one on.
+function cleanSpinWheel(list) {
+  const known = (Array.isArray(list) ? list : []).filter((x, i, a) => Spin.ALL_SLICES.includes(x?.id) && a.findIndex((y) => y?.id === x.id) === i)
+    .map((x) => ({ id: x.id, on: x.on !== false }));
+  const out = [...known, ...DEFAULTS.spin.wheel.filter((d) => !known.some((x) => x.id === d.id))];
+  if (!out.some((x) => x.on)) out[0].on = true;
+  return out;
+}
+const spinLayout = () => settings.spin.wheel.filter((x) => x.on).map((x) => x.id);
 
 const file = (name) => path.join(app.getPath('userData'), name);
 
@@ -81,7 +92,7 @@ let pen = null; // { displayId, by: 'key' | 'mouse' } while the draw key or the 
 let quitting = false;
 const menu = { open: false, x: 0, y: 0, displayId: null, hover: -1, items: [] };
 // Spin's wheel. offUp / offBack scroll the coming and past songs; vol0 is the volume it opened at.
-const spin = { open: false, x: 0, y: 0, displayId: null, hover: -1, offUp: 0, offBack: 0, vol0: null, vol: null, scroll: null };
+const spin = { open: false, x: 0, y: 0, displayId: null, hover: -1, offUp: 0, offBack: 0, offPl: 0, offPl0: 0, pl: null, vol0: null, vol: null, scroll: null };
 const overlays = new Map(); // displayId -> BrowserWindow
 let settingsWin = null;
 
@@ -679,10 +690,21 @@ function cancelSpin() {
 }
 
 // The songs the wheel shows each way, from the app's list and how far you've scrolled.
+// Your playlists as records: a window of `count` of them, from offPl.
+function plView() {
+  const n = settings.spin.count, P = spin.pl;
+  const items = P?.items || [];
+  const pl = items.slice(spin.offPl, spin.offPl + n).map((p, k) => ({ title: p.name, art: p.art, id: p.id, count: p.count ?? null, at: spin.offPl + k }));
+  const note = !P ? 'loading' : P.error ? P.error : P.unsupported ? 'unsupported' : P.needsLink ? 'link' : P.running === false ? 'closed' : !items.length ? 'none' : null;
+  return {
+    pl, plMore: spin.offPl + n < items.length, plLess: spin.offPl > 0, plTotal: items.length,
+    plCurrent: P?.current ?? null, plName: items.find((p) => p.id === P?.current)?.name || null, plNote: note,
+  };
+}
 function spinView() {
   const L = Music.snapshot().list;
   const n = settings.spin.count;
-  if (!L) return { up: [], back: [], upMore: false, upLess: false, backMore: false, backLess: false, total: 0, index: -1, offUp: 0, offBack: 0 };
+  if (!L) return { up: [], back: [], upMore: false, upLess: false, backMore: false, backLess: false, total: 0, index: -1, offUp: 0, offBack: 0, ...plView() };
   const i = L.index;
   const up = [], back = [];
   for (let k = 0; k < n; k++) {
@@ -696,10 +718,14 @@ function spinView() {
     upMore: i + 1 + spin.offUp + n < L.items.length, upLess: spin.offUp > 0,
     backMore: i - 1 - spin.offBack - n >= 0, backLess: spin.offBack > 0,
     total: L.items.length, index: i, offUp: spin.offUp, offBack: spin.offBack, source: L.source, name: L.name || null,
+    ...plView(),
   };
 }
 function spinCtx(view = spinView()) {
-  return { prev: spin.hover, up: view.up.length, back: view.back.length, upMore: view.upMore, upLess: view.upLess, backMore: view.backMore, backLess: view.backLess };
+  return {
+    prev: spin.hover, layout: spinLayout(), up: view.up.length, back: view.back.length, pl: view.pl.length,
+    upMore: view.upMore, upLess: view.upLess, backMore: view.backMore, backLess: view.backLess, plMore: view.plMore, plLess: view.plLess,
+  };
 }
 function spinHit(p) {
   return Spin.hitTest(settings.spin.size, settings.spin.count, p.x - spin.x, p.y - spin.y, spinCtx());
@@ -707,7 +733,7 @@ function spinHit(p) {
 const spinLayer = () => overlays.get(spin.displayId)?.webContents;
 function spinPayload() {
   const snap = Music.snapshot();
-  return { np: snap.np, error: snap.error, app: settings.spin.app, linked: Music.spotifyAccount().connected, view: spinView(), volume: spin.vol ?? snap.np?.volume ?? null };
+  return { np: snap.np, error: snap.error, app: settings.spin.app, linked: Music.spotifyAccount().connected, view: spinView(), volume: spin.vol ?? snap.np?.volume ?? null, layout: spinLayout() };
 }
 
 function openSpin() {
@@ -716,12 +742,28 @@ function openSpin() {
   const p = screen.getCursorScreenPoint();
   const d = screen.getDisplayNearestPoint(p);
   const np = Music.snapshot().np;
-  Object.assign(spin, { open: true, x: p.x, y: p.y, displayId: String(d.id), hover: -1, offUp: 0, offBack: 0, vol0: np?.volume ?? null, vol: null });
+  Object.assign(spin, { open: true, x: p.x, y: p.y, displayId: String(d.id), hover: -1, offUp: 0, offBack: 0, offPl: 0, offPl0: 0, pl: null, vol0: np?.volume ?? null, vol: null });
+  if (spinLayout().includes('lists')) loadSpinPlaylists();
   syncOverlays();
   const layer = overlays.get(spin.displayId);
   if (layer && !layer.isDestroyed()) pinOverlay(layer);
   spinLayer()?.send('spin:open', { ...toLocal(spin.displayId, p), size: settings.spin.size, count: settings.spin.count, ...spinPayload() });
   ensurePoll();
+}
+// The playlists come in after the wheel opens (kept a minute in music.js, so usually at once).
+// The list starts around the one that's playing, so it's in view.
+let spinOpenCount = 0;
+function loadSpinPlaylists() {
+  const opened = ++spinOpenCount;
+  Music.playlists(settings.spin.app).then((P) => {
+    if (!spin.open || opened !== spinOpenCount) return;
+    spin.pl = P;
+    const at = (P.items || []).findIndex((x) => x.id === P.current);
+    spin.offPl = at >= settings.spin.count ? at - Math.floor(settings.spin.count / 2) : 0;
+    clampSpinOffsets();
+    spin.offPl0 = spin.offPl;
+    spinLayer()?.send('spin:data', spinPayload());
+  }).catch(() => {});
 }
 // Fresh news from the music app while the wheel is up: show it (keeping your place in the list).
 Music.onChange(() => {
@@ -732,8 +774,9 @@ Music.onChange(() => {
 });
 function clampSpinOffsets() {
   const L = Music.snapshot().list;
-  if (!L) { spin.offUp = spin.offBack = 0; return; }
   const n = settings.spin.count;
+  spin.offPl = Math.max(0, Math.min(spin.offPl, (spin.pl?.items?.length || 0) - n));
+  if (!L) { spin.offUp = spin.offBack = 0; return; }
   spin.offUp = Math.max(0, Math.min(spin.offUp, L.items.length - L.index - 1 - n));
   spin.offBack = Math.max(0, Math.min(spin.offBack, L.index - n));
 }
@@ -744,8 +787,9 @@ function spinHover(h) {
   // Back in the middle: let go of everything, back to the song that's on and the volume you had.
   if (h === -1) {
     stopSpinScroll();
-    const moved = spin.offUp || spin.offBack;
+    const moved = spin.offUp || spin.offBack || spin.offPl !== spin.offPl0;
     spin.offUp = spin.offBack = 0;
+    spin.offPl = spin.offPl0;
     if (spin.vol != null && spin.vol0 != null && spin.vol !== spin.vol0) Music.act(settings.spin.app, 'volume', spin.vol0);
     spin.vol = null;
     if (moved) spinLayer()?.send('spin:view', { view: spinView() });
@@ -755,7 +799,7 @@ function spinHover(h) {
     Music.act(settings.spin.app, 'volume', spin.vol); // you hear it change as you slide
   }
   // Resting on an edge scrolls the list, faster the longer you stay.
-  const edge = { [Spin.UP_MORE]: ['up', 1], [Spin.UP_LESS]: ['up', -1], [Spin.BACK_MORE]: ['back', 1], [Spin.BACK_LESS]: ['back', -1] }[h];
+  const edge = { [Spin.UP_MORE]: ['up', 1], [Spin.UP_LESS]: ['up', -1], [Spin.BACK_MORE]: ['back', 1], [Spin.BACK_LESS]: ['back', -1], [Spin.PL_MORE]: ['pl', 1], [Spin.PL_LESS]: ['pl', -1] }[h];
   if (edge) startSpinScroll(...edge);
   else if (spin.scroll && h !== prev) stopSpinScroll();
   spinLayer()?.send('spin:hover', { hover: h, volume: spin.vol ?? spin.vol0 });
@@ -765,7 +809,7 @@ function startSpinScroll(side, dir) {
   stopSpinScroll();
   const s = { side, dir, n: 0, timer: null };
   const tick = () => {
-    const key = side === 'up' ? 'offUp' : 'offBack';
+    const key = { up: 'offUp', back: 'offBack', pl: 'offPl' }[side];
     const before = spin[key];
     spin[key] += dir;
     clampSpinOffsets();
@@ -799,7 +843,10 @@ function closeSpin(pick) {
     else if (h === Spin.SLICE.next) choice = { cmd: 'next' };
     else if (h === Spin.SLICE.prev) choice = { cmd: 'prev' };
     else if (Spin.isVol(h)) choice = { cmd: 'volume', value: h - Spin.VOL };
-    else if (Spin.isBead(h)) {
+    else if (Spin.isPl(h) && Spin.isBead(h)) {
+      const item = view.pl[h - Spin.PL];
+      if (item) choice = { cmd: 'playlist', id: item.id, side: 'pl', k: h - Spin.PL };
+    } else if (Spin.isBead(h)) {
       const item = Spin.isUp(h) ? view.up[h - Spin.UP] : view.back[h - Spin.BACK];
       if (item) choice = { cmd: 'play', at: item.at, side: Spin.isUp(h) ? 'up' : 'back', k: h - (Spin.isUp(h) ? Spin.UP : Spin.BACK) };
     }
@@ -810,6 +857,7 @@ function closeSpin(pick) {
   spin.open = false;
   if (choice) {
     if (choice.cmd === 'play') Music.playAt(appId, Music.snapshot().list, choice.at);
+    else if (choice.cmd === 'playlist') Music.playPlaylist(appId, choice.id);
     else if (choice.cmd === 'volume') Music.act(appId, 'volume', choice.value);
     else Music.act(appId, choice.cmd);
   }
@@ -1022,6 +1070,7 @@ ipcMain.handle('settings:set', (_e, patch) => {
     if (!settings.spin.enabled) cancelSpin();
     if (!SPIN_COUNTS.includes(settings.spin.count)) settings.spin.count = DEFAULTS.spin.count;
     if (!WHEEL_SIZES.includes(settings.spin.size)) settings.spin.size = DEFAULTS.spin.size;
+    settings.spin.wheel = cleanSpinWheel(settings.spin.wheel);
     buildMenu();
   }
   broadcast();
@@ -1114,6 +1163,7 @@ app.whenReady().then(() => {
   if (!Tools.TOOLS.some((t) => t.id === settings.page)) settings.page = DEFAULTS.page;
   if (!WHEEL_SIZES.includes(settings.wheelSize)) settings.wheelSize = DEFAULTS.wheelSize;
   if (!WHEEL_SIZES.includes(settings.spin.size)) settings.spin.size = DEFAULTS.spin.size;
+  settings.spin.wheel = cleanSpinWheel(settings.spin.wheel);
   // Keep the saved order, but make sure every built-in tool is present exactly once.
   const known = settings.tools.filter((t) => TOOL_IDS.includes(t.id));
   settings.tools = [...known, ...TOOL_IDS.filter((id) => !known.some((t) => t.id === id)).map((id) => ({ id, on: true }))];

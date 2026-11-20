@@ -328,10 +328,13 @@
   .keyrow { margin-top: 20px; }
 
   .demo {
-    position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; -webkit-app-region: no-drag;
-    background: color-mix(in srgb, var(--ink) 30%, transparent); opacity: 0; pointer-events: none; transition: opacity 200ms ease;
+    position: fixed; inset: 0; z-index: 30; display: grid; place-items: center;
+    background: color-mix(in srgb, var(--ink) 30%, transparent); opacity: 0; pointer-events: none; visibility: hidden;
+    transition: opacity 200ms ease, visibility 0s linear 200ms;
   }
-  .demo.open { opacity: 1; pointer-events: auto; }
+  /* Only claim the window (no-drag) while open: Electron maps drag regions from layout, not opacity, so a
+     closed full-window no-drag layer would stop the window from being moved at all. */
+  .demo.open { opacity: 1; pointer-events: auto; visibility: visible; transition: opacity 200ms ease; -webkit-app-region: no-drag; }
   .demo-sheet {
     width: 620px; padding: 20px 24px 20px; border-radius: 30px; background: var(--card); cursor: default;
     box-shadow: 0 8px 0 var(--card-lip), 0 30px 70px rgba(20, 18, 28, 0.25);
@@ -466,6 +469,10 @@
   .link .note { font-size: 12px; font-weight: 600; color: var(--accent-ink); min-height: 0; margin: 0; }
   .link .note:empty { display: none; }
   .spin-row[hidden] { display: none; }
+  .slices .tile { flex: 1 1 0; cursor: grab; }
+  .slices .tile.dragging { cursor: grabbing; }
+  .slices .tile .glyph svg { width: 26px; height: 26px; display: block; }
+  .slices .tile .name { font-size: 11px; }
   .pl-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
   .pl-list {
     display: grid; gap: 4px; max-height: 232px; overflow-y: auto; padding: 4px; margin: 0 -4px;
@@ -526,11 +533,11 @@
     </div>
     <p class="caption rise" style="--d:200ms" id="keycaption">Click a key to change it. Hold several to use them together.</p>
 
-    <div class="collapse" id="access"><div>
+    <div class="collapse access"><div>
       <div class="callout chunky">
         <h3>Allow Pane to hear your keys</h3>
-        <p>Turn on Pane in Privacy &amp; Security › Accessibility. Already on? Remove it and add it again.</p>
-        <button class="pill" id="accessBtn">Open Accessibility settings</button>
+        <p>Scrawl needs it to notice its keys. Turn on Pane in Privacy &amp; Security › Accessibility. Already on? Remove it and add it again.</p>
+        <button class="pill access-btn">Open Accessibility settings</button>
       </div>
     </div></div>
 
@@ -601,6 +608,14 @@
       </div>
     </div>
     <p class="caption rise" style="--d:200ms" id="awayCaption">Click the keys to change them.</p>
+
+    <div class="collapse access"><div>
+      <div class="callout chunky">
+        <h3>Allow Pane to hear your keys</h3>
+        <p>Away’s keys work without it, but Scrawl and Spin need it. Turn on Pane in Privacy &amp; Security › Accessibility. Already on? Remove it and add it again.</p>
+        <button class="pill access-btn">Open Accessibility settings</button>
+      </div>
+    </div></div>
 
     <div class="power rise" style="--d:240ms">
       <button class="power-btn" id="awayPower" aria-pressed="true">
@@ -685,6 +700,14 @@
     </div>
     <p class="caption rise" style="--d:200ms" id="spinCaption">Click a key to change it. Hold several to use them together.</p>
 
+    <div class="collapse access"><div>
+      <div class="callout chunky">
+        <h3>Allow Pane to hear your keys</h3>
+        <p>Spin needs it to notice its key. Turn on Pane in Privacy &amp; Security › Accessibility. Already on? Remove it and add it again.</p>
+        <button class="pill access-btn">Open Accessibility settings</button>
+      </div>
+    </div></div>
+
     <div class="power rise" style="--d:240ms">
       <button class="power-btn" id="spinPower" aria-pressed="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 3.5v8"/><path d="M6.6 6.8a7.5 7.5 0 1 0 10.8 0"/></svg>
@@ -712,6 +735,10 @@
     </div>
 
     <div class="rows">
+      <div class="row stack rise" style="--d:290ms">
+        <div><h3>Wheel</h3><p id="slicesHint">Click to take a slice off the wheel. Drag to reorder.</p></div>
+        <div class="tiles slices" id="slices" role="group" aria-label="Music wheel slices"></div>
+      </div>
       <div class="row rise" style="--d:300ms">
         <div><h3>Songs each way</h3><p>How many coming and past songs fan out.</p></div>
         <div class="stepper" data-key="spin.count" data-values="3,4,5,6"></div>
@@ -722,7 +749,7 @@
       </div>
       <div class="row stack spin-row rise" style="--d:330ms" id="playlistRow">
         <div class="pl-head">
-          <div><h3>Playlists</h3><p>Pick one to start it from the top. The wheel’s songs follow.</p></div>
+          <div><h3>Playlists</h3><p>Pick one here, or from the Playlists slice on the wheel. It starts from the top.</p></div>
           <button class="mini" id="plRefresh">Refresh</button>
         </div>
         <div class="pl-list" id="plList" role="list" aria-label="Playlists"></div>
