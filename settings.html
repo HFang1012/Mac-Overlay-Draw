@@ -466,6 +466,30 @@
   .link .note { font-size: 12px; font-weight: 600; color: var(--accent-ink); min-height: 0; margin: 0; }
   .link .note:empty { display: none; }
   .spin-row[hidden] { display: none; }
+  .pl-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .pl-list {
+    display: grid; gap: 4px; max-height: 232px; overflow-y: auto; padding: 4px; margin: 0 -4px;
+    border-radius: 16px; overscroll-behavior: contain; -webkit-app-region: no-drag;
+  }
+  .pl-list:empty { display: none; }
+  .pl {
+    display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center; text-align: left;
+    padding: 6px 10px 6px 6px; border-radius: 13px; background: var(--well); cursor: pointer; min-width: 0;
+    transition: transform 180ms var(--bouncy), background 160ms ease, box-shadow 200ms ease;
+  }
+  .pl:hover { transform: translateY(-1px); background: var(--card); box-shadow: 0 3px 0 var(--card-lip); }
+  .pl:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--card-lip); }
+  .pl .disc { width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background: #18221F; position: relative; display: grid; place-items: center; }
+  .pl .disc img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pl .disc i { width: 13px; height: 13px; border-radius: 50%; background: var(--c, #FFC94D); }
+  .pl .disc::after { content: ""; position: absolute; width: 4px; height: 4px; border-radius: 50%; background: var(--well); }
+  .pl b { font-size: 12.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .pl small { font-size: 11px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+  .pl.on { background: var(--card); box-shadow: inset 0 0 0 2.5px var(--accent); }
+  .pl.on small { color: var(--accent-ink); }
+  .pl.busy { opacity: 0.6; pointer-events: none; }
+  .pl-note { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 0; }
+  .pl-note:empty { display: none; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
@@ -691,6 +715,18 @@
       <div class="row rise" style="--d:300ms">
         <div><h3>Songs each way</h3><p>How many coming and past songs fan out.</p></div>
         <div class="stepper" data-key="spin.count" data-values="3,4,5,6"></div>
+      </div>
+      <div class="row rise" style="--d:320ms">
+        <div><h3>Wheel size</h3><p>How big the music wheel opens.</p></div>
+        <div class="stepper" data-key="spin.size" data-values="60,76,96" data-labels="Small,Medium,Large"></div>
+      </div>
+      <div class="row stack spin-row rise" style="--d:330ms" id="playlistRow">
+        <div class="pl-head">
+          <div><h3>Playlists</h3><p>Pick one to start it from the top. The wheel’s songs follow.</p></div>
+          <button class="mini" id="plRefresh">Refresh</button>
+        </div>
+        <div class="pl-list" id="plList" role="list" aria-label="Playlists"></div>
+        <p class="pl-note" id="plNote" aria-live="polite"></p>
       </div>
       <div class="row stack spin-row rise" style="--d:340ms" id="spotifyRow">
         <div><h3>Spotify queue</h3><p>Spotify keeps its queue to itself. Link your account once to see it, and your playlists, on the wheel. Play, skip and volume work without this.</p></div>

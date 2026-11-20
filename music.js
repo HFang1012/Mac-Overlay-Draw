@@ -292,6 +292,82 @@ async function playOne(list, item, ahead) {
   }
 }
 
+// ---------- playlists: the chooser on the Spin page ----------
+// Music lists your own playlists over Apple Events; Spotify's come from its Web API (so it needs the
+// same link as the song list). Kept for a minute so flipping pages doesn't ask again.
+let spotifyNowCtx = null; // the playlist or album Spotify is playing from, as the Web API last said
+let lists = { app: null, at: 0, data: null };
+async function playlists(appId, { fresh = false } = {}) {
+  if (!fresh && lists.app === appId && lists.data && Date.now() - lists.at < 60 * 1000) return withCurrent(appId, lists.data);
+  let data;
+  try {
+    if (appId === 'music') data = await musicPlaylists();
+    else if (appId === 'spotify') data = await spotifyPlaylists();
+    else data = { unsupported: true };
+  } catch (err) {
+    if (err.denied) return { error: 'denied' };
+    console.warn('Spin: playlists failed:', err.message);
+    return { error: 'failed' };
+  }
+  if (data.items) lists = { app: appId, at: Date.now(), data };
+  return withCurrent(appId, data);
+}
+function withCurrent(appId, data) {
+  const current = appId === 'music' ? cache.np?.playlist?.id ?? null : appId === 'spotify' ? spotifyNowCtx : null;
+  return { ...data, current };
+}
+async function musicPlaylists() {
+  const out = JSON.parse(await osa(`(() => {
+    const m = Application('Music');
+    if (!m.running()) return JSON.stringify({ running: false });
+    const p = m.userPlaylists;
+    return JSON.stringify({ running: true, names: p.name(), ids: p.persistentID(), kinds: p.specialKind() });
+  })()`, { timeout: 15000 }));
+  if (!out.running) return { running: false };
+  // Your own playlists (smart ones too), not the library, folders or Apple's built-in lists.
+  const items = out.names
+    .map((name, i) => ({ id: out.ids[i], name, kind: String(out.kinds[i]) }))
+    .filter((p) => p.kind === 'none' && p.name)
+    .map(({ id, name }) => ({ id, name }));
+  return { running: true, items };
+}
+async function spotifyPlaylists() {
+  if (!spotifyAccount().connected) return { needsLink: true };
+  const items = [];
+  let page = await api('/me/playlists?limit=50');
+  while (page) {
+    for (const p of page.items || []) {
+      if (!p?.uri) continue;
+      items.push({ id: p.uri, name: p.name, art: pickImage(p.images), count: p.tracks?.total ?? p.items?.total ?? null });
+    }
+    page = page.next && items.length < 200 ? await api(page.next) : null;
+  }
+  return { running: true, items };
+}
+/** Starts a playlist from the top, staying in the app you're in. */
+async function playPlaylist(appId, id) {
+  try {
+    if (appId === 'music') {
+      if (!/^[0-9A-F]{16}$/i.test(String(id))) return { ok: false };
+      await keepFront(appId, () => osa(`(() => {
+        const m = Application('Music');
+        const p = m.playlists.whose({ persistentID: ${lit(id)} })[0];
+        m.play(p);
+      })()`));
+    } else if (appId === 'spotify') {
+      if (!/^spotify:(user:[^:]+:)?playlist:[0-9A-Za-z]+$/.test(String(id))) return { ok: false };
+      await keepFront(appId, () => osa(`Application('Spotify').playTrack(${lit(id)})`));
+      spotifyNowCtx = id;
+    } else return { ok: false };
+  } catch (err) {
+    console.warn('Spin: playing the playlist failed:', err.message);
+    return { ok: false, error: err.denied ? 'denied' : 'failed' };
+  }
+  await wait(450);
+  await refresh(appId);
+  return { ok: true, current: withCurrent(appId, {}).current };
+}
+
 // ---------- Spotify Web API (only for the song list) ----------
 const SPOTIFY_PORT = 43117;
 const REDIRECT = `http://127.0.0.1:${SPOTIFY_PORT}/callback`;
@@ -321,6 +397,8 @@ function disconnectSpotify() {
   tokens = null;
   try { fs.rmSync(tokenFile()); } catch {}
   spotifyCtx = { uri: null, items: null, at: 0 };
+  spotifyNowCtx = null;
+  lists = { app: null, at: 0, data: null };
 }
 
 const b64url = (buf) => buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -445,6 +523,7 @@ async function spotifyList(np) {
   if (!spotifyAccount().connected || !np.track) return null;
   const now = await api('/me/player/currently-playing').catch(() => null);
   const ctx = now?.context;
+  spotifyNowCtx = ctx?.uri || null;
   // In order, the playlist or album is the list. Shuffled, Spotify's queue is the truth.
   if (ctx?.uri && !np.shuffle && (ctx.type === 'playlist' || ctx.type === 'album')) {
     const items = await contextTracks(ctx).catch(() => null);
@@ -462,4 +541,4 @@ async function spotifyList(np) {
   return { source: 'spotify-queue', items: [...past, current, ...coming], index: past.length };
 }
 
-module.exports = { keepFront, frontBundle, APPS, refresh, snapshot, onChange, act, playAt, connectSpotify, disconnectSpotify, spotifyAccount, REDIRECT };
+module.exports = { playlists, playPlaylist, keepFront, frontBundle, APPS, refresh, snapshot, onChange, act, playAt, connectSpotify, disconnectSpotify, spotifyAccount, REDIRECT };

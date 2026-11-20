@@ -42,7 +42,7 @@ function renderApps() {
       el.addEventListener('click', () => {
         el.blur();
         if (S.spin.app === id) return;
-        saveSpin({ app: id }).then(checkNow);
+        saveSpin({ app: id }).then(() => { plShown = ''; checkNow(); loadPlaylists(); });
       });
       appsEl.appendChild(el);
     });
@@ -53,6 +53,7 @@ function renderApps() {
     el.setAttribute('aria-checked', on);
   }
   document.getElementById('spotifyRow').hidden = S.spin.app !== 'spotify';
+  document.getElementById('playlistRow').hidden = S.spin.app === 'other';
 }
 
 // ---------- the preview: Spin's wheel, small ----------
@@ -76,6 +77,7 @@ async function checkNow() {
   try { r = await scrawl.invoke('spin:status'); } catch { return; }
   showNow(r);
   showSpotify(r.spotify, r.redirect);
+  if (plLoaded) loadPlaylists(); // cheap: the list is kept a minute, this mostly moves the check mark
   // Keep it fresh while the page is open (cheap: one quick question to the app).
   nowTimer = setTimeout(() => { if (!document.getElementById('spinPage').hidden && document.hasFocus()) checkNow(); else nowTimer = setTimeout(checkNow, 4000); }, 4000);
 }
@@ -115,6 +117,74 @@ function showNow({ np, error, list }) {
 }
 document.getElementById('nowFix').addEventListener('click', () => scrawl.send('spin:automation'));
 
+// ---------- playlists ----------
+// Pick one and it plays from the top in the music app, without bringing that app to the front.
+const plList = document.getElementById('plList'), plNote = document.getElementById('plNote');
+let plLoaded = false, plShown = '', plBusy = false;
+const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+async function loadPlaylists(fresh = false) {
+  if (S.spin.app === 'other' || plBusy) return;
+  plLoaded = true;
+  const app = S.spin.app;
+  if (!plShown) plNote.textContent = 'Looking for playlists…';
+  let r;
+  try { r = await scrawl.invoke('spin:playlists', { fresh }); } catch { return; }
+  if (app !== S.spin.app) return; // switched apps while it looked
+  showPlaylists(r);
+}
+function showPlaylists(r) {
+  const name = NAMES[S.spin.app];
+  let note = '';
+  if (r.error === 'denied') note = `Pane isn’t allowed to control ${name} yet.`;
+  else if (r.error) note = `Couldn’t get ${name}’s playlists. Try Refresh.`;
+  else if (r.needsLink) note = 'Link Spotify below to choose from your playlists.';
+  else if (r.running === false) note = `Open ${name} to choose a playlist.`;
+  else if (!r.items?.length) note = 'No playlists yet.';
+  plNote.textContent = note;
+  const items = note ? [] : r.items;
+  // Only rebuild when the list itself changed, so scrolling and hovering aren't disturbed.
+  const key = items.map((p) => p.id).join('|');
+  if (key !== plShown) {
+    plShown = key;
+    plList.innerHTML = items.map((p) => {
+      const disc = p.art ? `<img alt="" src="${esc(p.art)}">` : `<i style="--c:${Spin.labelColor({ title: p.name })}"></i>`;
+      const count = p.count != null ? `${p.count} song${p.count === 1 ? '' : 's'}` : '';
+      return `<button class="pl" role="listitem" data-id="${esc(p.id)}"><span class="disc">${disc}</span><b>${esc(p.name)}</b><small>${count}</small></button>`;
+    }).join('');
+  }
+  markPlaylist(r.current);
+}
+function markPlaylist(current) {
+  for (const el of plList.children) {
+    const on = !!current && el.dataset.id === current;
+    if (on !== el.classList.contains('on')) {
+      el.classList.toggle('on', on);
+      const small = el.querySelector('small');
+      if (on) { small.dataset.count = small.textContent; small.textContent = 'Playing'; }
+      else if (small.dataset.count != null) small.textContent = small.dataset.count;
+    }
+  }
+}
+plList.addEventListener('click', async (e) => {
+  const el = e.target.closest('.pl');
+  if (!el || plBusy) return;
+  el.blur();
+  plBusy = true;
+  el.classList.add('busy');
+  const r = await scrawl.invoke('spin:playlist', el.dataset.id).catch(() => ({ ok: false }));
+  el.classList.remove('busy');
+  plBusy = false;
+  if (!r.ok) {
+    shake(el);
+    plNote.textContent = r.error === 'denied' ? `Pane isn’t allowed to control ${NAMES[S.spin.app]} yet.` : 'That playlist didn’t start. Try again.';
+    return;
+  }
+  plNote.textContent = '';
+  markPlaylist(r.current || el.dataset.id);
+  checkNow();
+});
+document.getElementById('plRefresh').addEventListener('click', (e) => { e.currentTarget.blur(); loadPlaylists(true); });
+
 // ---------- Spotify link ----------
 function showSpotify(acct, redirect) {
   if (!acct) return;
@@ -145,10 +215,12 @@ document.getElementById('spotifyGo').addEventListener('click', async (e) => {
   note.textContent = r.ok ? '' : r.error;
   if (!r.ok) shake(btn);
   checkNow();
+  if (r.ok) { plShown = ''; loadPlaylists(true); }
 });
 document.getElementById('spotifyUnlink').addEventListener('click', async () => {
   showSpotify(await scrawl.invoke('spotify:disconnect'));
   checkNow();
+  plShown = ''; loadPlaylists(true);
 });
 
 // ---------- on / off ----------
@@ -182,10 +254,10 @@ function updateSpin() {
   if (!spinStarted) {
     spinStarted = true;
     renderSpinPreview(null);
-    if (!spinPage.hidden) checkNow();
+    if (!spinPage.hidden) { checkNow(); loadPlaylists(); }
   }
 }
 // Ask the music app only once the Spin page is open (the first ask is when macOS asks you to allow it).
 const spinPage = document.getElementById('spinPage');
-new MutationObserver(() => { if (!spinPage.hidden && S) checkNow(); else clearTimeout(nowTimer); })
+new MutationObserver(() => { if (!spinPage.hidden && S) { checkNow(); if (!plLoaded) loadPlaylists(); } else clearTimeout(nowTimer); })
   .observe(spinPage, { attributes: true, attributeFilter: ['hidden'] });

@@ -38,6 +38,7 @@ const DEFAULTS = {
     key: { codes: [UiohookKey.MetaRight], symbol: '⌘', name: 'Right Command', side: 'right' },
     app: 'spotify', // 'spotify' | 'music' | 'other' (any player, through the media keys)
     count: 5, // songs shown each way
+    size: 76, // the music wheel's own size, apart from Scrawl's (one of WHEEL_SIZES)
     enabled: true,
   },
 };
@@ -701,7 +702,7 @@ function spinCtx(view = spinView()) {
   return { prev: spin.hover, up: view.up.length, back: view.back.length, upMore: view.upMore, upLess: view.upLess, backMore: view.backMore, backLess: view.backLess };
 }
 function spinHit(p) {
-  return Spin.hitTest(settings.wheelSize, settings.spin.count, p.x - spin.x, p.y - spin.y, spinCtx());
+  return Spin.hitTest(settings.spin.size, settings.spin.count, p.x - spin.x, p.y - spin.y, spinCtx());
 }
 const spinLayer = () => overlays.get(spin.displayId)?.webContents;
 function spinPayload() {
@@ -719,7 +720,7 @@ function openSpin() {
   syncOverlays();
   const layer = overlays.get(spin.displayId);
   if (layer && !layer.isDestroyed()) pinOverlay(layer);
-  spinLayer()?.send('spin:open', { ...toLocal(spin.displayId, p), size: settings.wheelSize, count: settings.spin.count, ...spinPayload() });
+  spinLayer()?.send('spin:open', { ...toLocal(spin.displayId, p), size: settings.spin.size, count: settings.spin.count, ...spinPayload() });
   ensurePoll();
 }
 // Fresh news from the music app while the wheel is up: show it (keeping your place in the list).
@@ -826,6 +827,8 @@ ipcMain.handle('spotify:connect', async (_e, clientId) => {
   if (result.ok) Music.refresh(settings.spin.app);
   return result;
 });
+ipcMain.handle('spin:playlists', (_e, opts) => Music.playlists(settings.spin.app, { fresh: !!opts?.fresh }));
+ipcMain.handle('spin:playlist', (_e, id) => Music.playPlaylist(settings.spin.app, id));
 ipcMain.on('spin:automation', () => shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Automation'));
 ipcMain.on('spin:dashboard', () => shell.openExternal('https://developer.spotify.com/dashboard'));
 ipcMain.on('clipboard:write', (_e, text) => { if (typeof text === 'string' && text.length < 200) clipboard.writeText(text); });
@@ -1018,6 +1021,7 @@ ipcMain.handle('settings:set', (_e, patch) => {
   if ('spin' in patch) {
     if (!settings.spin.enabled) cancelSpin();
     if (!SPIN_COUNTS.includes(settings.spin.count)) settings.spin.count = DEFAULTS.spin.count;
+    if (!WHEEL_SIZES.includes(settings.spin.size)) settings.spin.size = DEFAULTS.spin.size;
     buildMenu();
   }
   broadcast();
@@ -1087,7 +1091,9 @@ app.whenReady().then(() => {
   settings = { ...DEFAULTS, ...readJSON('settings.json', {}) };
   settings.away = { ...DEFAULTS.away, ...settings.away };
   const firstSpin = !settings.spin;
-  settings.spin = { ...DEFAULTS.spin, ...settings.spin };
+  // Spin's wheel used to share Scrawl's size: start it at that size, then they're set apart.
+  const spinSize = settings.spin?.size ?? settings.wheelSize;
+  settings.spin = { ...DEFAULTS.spin, ...settings.spin, size: spinSize };
   if (firstSpin) {
     // Spotify if it's on this Mac, else Apple Music (always there).
     const has = (name) => ['/Applications', path.join(app.getPath('home'), 'Applications')].some((d) => fs.existsSync(path.join(d, name)));
@@ -1107,6 +1113,7 @@ app.whenReady().then(() => {
   }
   if (!Tools.TOOLS.some((t) => t.id === settings.page)) settings.page = DEFAULTS.page;
   if (!WHEEL_SIZES.includes(settings.wheelSize)) settings.wheelSize = DEFAULTS.wheelSize;
+  if (!WHEEL_SIZES.includes(settings.spin.size)) settings.spin.size = DEFAULTS.spin.size;
   // Keep the saved order, but make sure every built-in tool is present exactly once.
   const known = settings.tools.filter((t) => TOOL_IDS.includes(t.id));
   settings.tools = [...known, ...TOOL_IDS.filter((id) => !known.some((t) => t.id === id)).map((id) => ({ id, on: true }))];
