@@ -200,8 +200,7 @@
   // Scrawl is Mac-only: say so plainly anywhere else.
   if (!isMac) fine.textContent = 'Scrawl runs on macOS. Open this page on your Mac to download it.';
 
-  // On GitHub Pages (owner.github.io/repo/), ask GitHub for this repo's latest release and link
-  // straight to the .dmg attached to it, whatever it's called.
+  // On GitHub Pages (owner.github.io/repo/), the button downloads the .dmg from this repo's latest release.
   (function () {
     const host = location.hostname;
     if (!host.endsWith('github.io')) return;
@@ -209,24 +208,31 @@
     const repo = location.pathname.split('/').filter(Boolean)[0] || host;
     const base = `https://github.com/${owner}/${repo}`;
     document.getElementById('source').href = base;
-    button.href = `${base}/releases/latest`; // until we hear back: the release page itself
+    // The direct file link works from the first click: GitHub sends it as a download (an attachment),
+    // so the browser saves Scrawl.dmg instead of opening a page.
+    button.href = `${base}/releases/latest/download/Scrawl.dmg`;
 
+    // Then ask GitHub about the release, only to show the version, follow a renamed .dmg,
+    // or explain when there's nothing to download yet. If this fails, the direct link above still works.
     fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : r.status === 404 ? 'none' : null))
       .then((release) => {
-        const dmg = release?.assets?.find((a) => a.name.toLowerCase().endsWith('.dmg'));
+        if (!release) return; // rate-limited or offline: keep the direct link
+        if (release === 'none') {
+          button.href = `${base}/releases`;
+          fine.textContent = 'No download yet. The first release is on its way.';
+          return;
+        }
+        const dmg = release.assets?.find((a) => a.name.toLowerCase().endsWith('.dmg'));
         if (dmg) {
           button.href = dmg.browser_download_url;
           if (isMac) fine.textContent = `Version ${release.tag_name.replace(/^v/, '')}, for Macs with Apple silicon.`;
-        } else if (release) {
+        } else {
           button.href = release.html_url;
           fine.textContent = 'The newest release has no Mac download attached yet.';
-        } else {
-          button.href = `${base}/releases`;
-          fine.textContent = 'No download yet. The first release is on its way.';
         }
       })
-      .catch(() => {}); // offline or rate-limited: the release page link still works
+      .catch(() => {});
   })();
 
   // The twirl: size the dash to the path, set the arrowhead along the final tangent, draw on when seen.
