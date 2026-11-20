@@ -62,7 +62,46 @@ function broadcast() {
 }
 
 // ---------- overlay windows (one per display) ----------
+// Above full-screen apps (and the menu bar) while in use; the layer is hidden the rest of the time.
+const OVERLAY_LEVEL = 'screen-saver';
+
+// Rebuild the layers only when screens really change (added, removed, moved, resized, rescaled).
+// Switching Spaces or into a full-screen app changes each screen's *work area* (the menu bar and Dock
+// hide), and rebuilding then used to tear the layers down mid-use.
+const displaysKey = () => screen.getAllDisplays()
+  .map((d) => `${d.id}:${d.bounds.x},${d.bounds.y},${d.bounds.width}x${d.bounds.height}@${d.scaleFactor}`)
+  .sort().join('|');
+let builtFor = '';
+function refreshOverlays() {
+  if (displaysKey() !== builtFor) createOverlays();
+}
+
+// Make sure a layer covers its whole screen, sits above full-screen apps, and joins every Space.
+// Done each time it appears, because macOS can move or re-level a hidden panel.
+function pinOverlay(w) {
+  const d = screen.getAllDisplays().find((x) => String(x.id) === w.displayId);
+  if (d) {
+    const b = w.getBounds();
+    if (b.x !== d.bounds.x || b.y !== d.bounds.y || b.width !== d.bounds.width || b.height !== d.bounds.height) w.setBounds(d.bounds);
+  }
+  w.setAlwaysOnTop(true, OVERLAY_LEVEL);
+  // skipTransformProcessType: Electron's full-screen trick briefly turns Scrawl into a background app,
+  // which can pull macOS back to Scrawl's Space. It's needed once, at creation; never again after.
+  w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
+}
+
+// A screen point in a layer's own coordinates, from the window's real frame (not the display's),
+// so the wheel and pen land under the cursor even if macOS nudged the window.
+function toLocal(id, p) {
+  const w = overlays.get(id);
+  const b = w && !w.isDestroyed()
+    ? w.getBounds()
+    : (screen.getAllDisplays().find((d) => String(d.id) === id)?.bounds ?? { x: 0, y: 0 });
+  return { x: p.x - b.x, y: p.y - b.y };
+}
+
 function createOverlays() {
+  builtFor = displaysKey();
   for (const w of overlays.values()) if (!w.isDestroyed()) w.destroy();
   overlays.clear();
   for (const d of screen.getAllDisplays()) {
@@ -86,38 +125,42 @@ function createOverlays() {
       // The layer stays hidden most of the time; keep its page awake so the wheel appears instantly.
       webPreferences: { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false },
     });
-    w.setAlwaysOnTop(true, 'floating');
-    w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    w.displayId = String(d.id);
+    w.setIgnoreMouseEvents(true); // from the very start: an idle layer must never catch a click
+    w.setAlwaysOnTop(true, OVERLAY_LEVEL);
+    w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); // the one time the full-screen trick runs
     w.loadFile(path.join(__dirname, 'overlay.html'), { query: { id: String(d.id) } });
-    w.once('ready-to-show', () => { w.setBounds(d.bounds); w.ready = true; syncOverlays(); });
+    w.once('ready-to-show', () => { pinOverlay(w); w.ready = true; syncOverlays(); });
     overlays.set(String(d.id), w);
   }
 }
 
-// A display's drawing layer exists on screen only while there is something on it:
-// the wheel, a tool in hand, or visible drawings. Otherwise Scrawl is just a normal window.
-function overlayNeeded(id) {
-  if (!settings.enabled) return false;
-  if (menu.open && menu.displayId === id) return true;
-  if (activeTool) return true;
-  return visible && (drawings[id]?.length ?? 0) > 0;
+// While Scrawl is on, each display's drawing layer stays on screen all the time: fully transparent and
+// letting every click through when idle, so you can't see or touch it. It must never be hidden, because
+// macOS drops a hidden window's "join every Space" setting and brings it back on Scrawl's own Space,
+// not the one you're on. Turning Scrawl off is the only time the layers leave the screen.
+function overlayNeeded() {
+  return settings.enabled;
 }
 function syncOverlays() {
-  for (const [id, w] of overlays) {
+  for (const [, w] of overlays) {
     if (w.isDestroyed() || !w.ready) continue;
-    const need = overlayNeeded(id);
-    if (need) {
+    // Clicks pass straight through unless a pencil or eraser is in hand.
+    w.setIgnoreMouseEvents(!activeTool);
+    if (overlayNeeded()) {
       clearTimeout(w.hideTimer);
       w.hideTimer = null;
-      w.setIgnoreMouseEvents(!activeTool); // clicks pass straight through unless you're drawing
-      if (!w.isVisible()) w.showInactive();
+      if (!w.isVisible()) {
+        pinOverlay(w);
+        w.showInactive();
+        w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
+      }
     } else if (w.isVisible() && !w.hideTimer) {
-      // Let go of clicks right away, but keep the layer up long enough for exit animations to play.
-      w.setIgnoreMouseEvents(true);
+      // Turned off: let the drawings fade out first, then take the layer away.
       w.hideTimer = setTimeout(() => {
         w.hideTimer = null;
-        if (!w.isDestroyed() && !overlayNeeded(id)) w.hide();
-      }, 720); // long enough for the hide and clear animations
+        if (!w.isDestroyed() && !overlayNeeded()) w.hide();
+      }, 720);
     }
   }
 }
@@ -153,7 +196,7 @@ function tick() {
   lastCursorKey = key;
   for (const [id, w] of overlays) {
     if (w.isDestroyed()) continue;
-    w.webContents.send('cursor', id === String(d.id) ? { x: p.x - d.bounds.x, y: p.y - d.bounds.y } : null);
+    w.webContents.send('cursor', id === String(d.id) ? toLocal(id, p) : null);
   }
 }
 
@@ -164,10 +207,10 @@ function openMenu() {
   const p = screen.getCursorScreenPoint();
   const d = screen.getDisplayNearestPoint(p);
   Object.assign(menu, { open: true, x: p.x, y: p.y, displayId: String(d.id), hover: -1, items });
-  overlays.get(menu.displayId)?.webContents.send('menu:open', {
-    x: p.x - d.bounds.x, y: p.y - d.bounds.y, items, ...publicState(),
-  });
-  syncOverlays();
+  syncOverlays(); // make sure the layer is up,
+  const layer = overlays.get(menu.displayId);
+  if (layer && !layer.isDestroyed()) pinOverlay(layer); // covering this screen, then measure the cursor on it
+  overlays.get(menu.displayId)?.webContents.send('menu:open', { ...toLocal(menu.displayId, p), items, ...publicState() });
   ensurePoll();
 }
 function closeMenu(pick) {
@@ -269,7 +312,7 @@ function penDown() {
   const p = screen.getCursorScreenPoint();
   const d = screen.getDisplayNearestPoint(p);
   pen = { displayId: String(d.id) };
-  overlays.get(pen.displayId)?.webContents.send('pen:down', { x: p.x - d.bounds.x, y: p.y - d.bounds.y });
+  overlays.get(pen.displayId)?.webContents.send('pen:down', toLocal(pen.displayId, p));
 }
 function penUp() {
   if (!pen) return;
@@ -440,7 +483,7 @@ app.whenReady().then(() => {
   createOverlays();
   createSettings();
   for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) {
-    screen.on(ev, () => createOverlays());
+    screen.on(ev, refreshOverlays);
   }
   buildMenu();
   // Without Accessibility access the hook can't start. Keep trying, so granting access
@@ -502,5 +545,5 @@ app.on('before-quit', () => {
 
 // Test hook: only present when SCRAWL_TEST is set (used by automated checks, never in normal runs).
 if (process.env.SCRAWL_TEST) {
-  global.__scrawlTest = { applyTool, step, setEnabled, peek: () => ({ activeTool, visible, menuOpen: menu.open, pencilColor: settings.pencilColor, enabled: settings.enabled, drawings, undo: history.undo.length, redo: history.redo.length }) };
+  global.__scrawlTest = { applyTool, step, setEnabled, overlays, menu, peek: () => ({ activeTool, visible, menuOpen: menu.open, pencilColor: settings.pencilColor, enabled: settings.enabled, drawings, undo: history.undo.length, redo: history.redo.length }) };
 }
