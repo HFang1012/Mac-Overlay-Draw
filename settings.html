@@ -34,6 +34,8 @@
   .brand svg { width: 30px; height: 22px; }
   .brand:hover svg .scribble { animation: scribble 900ms var(--smooth); }
   @keyframes scribble { from { stroke-dashoffset: 1400; } }
+  .version { font-size: 12px; font-weight: 700; color: var(--ink-2); background: var(--well); border-radius: 8px; padding: 2px 8px; margin-left: 2px; }
+  .version:empty { display: none; }
   h1 { font-size: 30px; line-height: 1.12; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
   .lede { color: var(--ink-2); font-weight: 500; margin: 10px 0 0; line-height: 1.5; }
 
@@ -223,6 +225,7 @@
         <circle cx="752" cy="414" r="74" fill="#262B36"/>
       </svg>
       Scrawl
+      <span class="version" id="version"></span>
     </div>
     <h1 class="rise" style="--d:60ms">Hold a key.<br>Draw on anything.</h1>
     <p class="lede rise" style="--d:120ms">Hold the wheel key and a wheel opens at your cursor. Slide toward a tool and let go to pick it. Let go in the middle to hide or show drawings. With a tool in hand, drag or hold the draw key to draw, and use ⌘Z or ⌘⇧Z to undo or redo. Pick the tool again, press Esc, or right-click to put it down.</p>

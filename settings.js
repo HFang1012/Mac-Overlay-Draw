@@ -399,8 +399,9 @@ function update() {
   $('login').setAttribute('aria-checked', S.openAtLogin);
 }
 
-scrawl.invoke('settings:get').then(({ settings }) => {
+scrawl.invoke('settings:get').then(({ settings, version }) => {
   S = settings;
+  $('version').textContent = version ? `Version ${version}` : '';
   ['hotkey', 'drawKey'].forEach((which, i) => {
     renderKey(which, true);
     wellFor(which).querySelector('.keycap').style.setProperty('--d', `${260 + i * 80}ms`);

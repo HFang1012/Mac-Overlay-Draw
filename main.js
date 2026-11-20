@@ -357,7 +357,7 @@ function createSettings() {
 const trusted = () => systemPreferences.isTrustedAccessibilityClient(false);
 
 // ---------- IPC ----------
-ipcMain.handle('settings:get', () => ({ settings, trusted: trusted() }));
+ipcMain.handle('settings:get', () => ({ settings, trusted: trusted(), version: app.getVersion() }));
 ipcMain.handle('settings:set', (_e, patch) => {
   if ('enabled' in patch) { setEnabled(patch.enabled); delete patch.enabled; }
   settings = { ...settings, ...patch };
