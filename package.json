@@ -1,6 +1,6 @@
 {
   "name": "pane",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "Small tools that sit on top of your Mac: Scrawl to draw on your screen, Away to blur it while you step away.",
   "main": "main.js",
   "scripts": {
