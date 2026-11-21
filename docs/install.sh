@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs (or updates) Pane in Applications, with no "can't verify" prompt:
 #
-#   curl -fsSL https://hfang1012.github.io/Mac-Overlay-Draw/install.sh | sh
+#   curl -fsSL https://hfang1012.github.io/Pane-Mac/install.sh | sh
 #
 # Why no prompt: macOS only checks apps carrying the "downloaded from the internet" mark that browsers
 # add. curl doesn't add it, so Pane installed this way opens straight away.
@@ -10,7 +10,7 @@
 # and Pane picks up its settings and drawings.
 set -e
 
-REPO="${PANE_REPO:-${SCRAWL_REPO:-HFang1012/Mac-Overlay-Draw}}"
+REPO="${PANE_REPO:-${SCRAWL_REPO:-HFang1012/Pane-Mac}}"
 URL="https://github.com/$REPO/releases/latest/download/Pane.dmg"
 
 if [ "$(uname -s)" != "Darwin" ]; then

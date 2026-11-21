@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pane</title>
+<meta name="author" content="hucklberi">
 <meta name="description" content="Pane for Mac: Scrawl draws on your screen, Away blurs it while you're gone, Spin runs your music from a wheel.">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="icon.png">
@@ -56,6 +57,7 @@
   .hero { text-align: center; }
   .icon { width: 128px; height: 128px; display: block; margin: 0 auto; filter: drop-shadow(0 14px 22px rgba(43, 39, 51, 0.2)); }
   h1 { font-size: 56px; line-height: 1; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 0; }
+  .byline { color: var(--ink-2); font-size: 15px; font-weight: 700; letter-spacing: 0.02em; margin: 8px 0 0; }
   .lede { color: var(--ink-2); font-size: 19px; font-weight: 600; max-width: 26em; margin: 14px auto 0; }
 
   /* The one-command install is the main way in: a big card with the command and a copy key. */
@@ -481,12 +483,13 @@
   <section class="hero">
     <img class="icon pop" src="icon.png" alt="" width="128" height="128">
     <h1 class="rise" style="--d:120ms">Pane</h1>
+    <p class="byline rise" style="--d:160ms">by hucklberi</p>
     <p class="lede rise" style="--d:200ms">Three small tools for your Mac. Scrawl draws on your screen. Away blurs it while you’re gone. Spin runs your music from a wheel. Change any shortcut to keys you like.</p>
 
     <div class="quick pop" style="--d:300ms">
       <p class="label">Install with one command <span class="badge">Recommended</span></p>
       <div class="cmd">
-        <code class="cmd-text">curl -fsSL https://hfang1012.github.io/Mac-Overlay-Draw/install.sh | sh</code>
+        <code class="cmd-text">curl -fsSL https://hfang1012.github.io/Pane-Mac/install.sh | sh</code>
         <button class="copy" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="3"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>Copy</span></button>
       </div>
       <p class="how">Open Terminal (<kbd>⌘</kbd> <kbd>Space</kbd>, type “Terminal”), paste, press Return. No security prompt, and running it again updates Pane.</p>
@@ -601,7 +604,7 @@
       <h3>1. One command <span class="badge">Recommended</span></h3>
       <p>Downloads Pane, puts it in Applications and opens it.</p>
       <div class="cmd">
-        <code class="cmd-text">curl -fsSL https://hfang1012.github.io/Mac-Overlay-Draw/install.sh | sh</code>
+        <code class="cmd-text">curl -fsSL https://hfang1012.github.io/Pane-Mac/install.sh | sh</code>
         <button class="copy" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="3"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>Copy</span></button>
       </div>
       <ol class="steps">
