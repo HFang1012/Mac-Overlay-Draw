@@ -6,6 +6,7 @@ const Wheel = require('./wheel.js'); // same geometry the wheel is drawn with, f
 const Tools = require('./tools.js'); // Pane's tools and Away's moods
 const Spin = require('./spin.js'); // Spin's music wheel: same geometry for drawing and hit-testing
 const Music = require('./music.js'); // Spin's link to Spotify, Music or the media keys
+const Updater = require('./updater.js'); // checks GitHub for a newer Pane and offers to install it
 const { execFile } = require('child_process');
 
 // ---------- persistence ----------
@@ -1181,6 +1182,7 @@ app.whenReady().then(() => {
   // in System Settings takes effect without a restart.
   startHook();
   hookTimer = setInterval(startHook, 1500);
+  Updater.start({ store: { get: () => readJSON('update.json', {}), set: (v) => writeJSON('update.json', v) } });
 });
 
 let hookOn = false;
@@ -1203,6 +1205,7 @@ function buildMenu() {
       label: app.name,
       submenu: [
         { role: 'about' },
+        { label: 'Check for Updates…', click: () => Updater.check({ manual: true }) },
         { type: 'separator' },
         { label: 'Settings…', accelerator: 'Cmd+,', click: show },
         { label: settings.enabled ? 'Turn Scrawl Off' : 'Turn Scrawl On', click: () => setEnabled(!settings.enabled) },

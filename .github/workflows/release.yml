@@ -49,6 +49,15 @@ jobs:
           echo "Built version $built for tag $TAG"
           [ "v$built" = "$TAG" ] || { echo "::error::Built $built but the tag is $TAG"; exit 1; }
 
+      # The notes are this version's commit titles. Pane shows them in its update prompt as the changelog.
+      - name: Write the changelog
+        run: |
+          prev=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$TAG^" 2>/dev/null || true)
+          range="${prev:+$prev..}$TAG"
+          git log --no-merges --format='- %s' "$range" | grep -v -E '^- Release [0-9]' > notes.md || true
+          [ -s notes.md ] || echo '- Small fixes and improvements' > notes.md
+          cat notes.md
+
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,5 +66,5 @@ jobs:
             # The release already exists (made by hand, or a re-run): replace its download.
             gh release upload "$TAG" build/Pane.dmg --clobber
           else
-            gh release create "$TAG" build/Pane.dmg --title "Pane ${TAG#v}" --generate-notes --latest
+            gh release create "$TAG" build/Pane.dmg --title "Pane ${TAG#v}" --notes-file notes.md --latest
           fi
