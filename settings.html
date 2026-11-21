@@ -418,62 +418,17 @@
   .dots span.done { background: var(--accent); }
   .demo-foot .pill { margin: 0 0 4px; }
 
-  /* ---------- a toy for each tool, in the space under the left column ---------- */
-  .toy {
+  /* ---------- good to know: a few tips for each tool, in the space under the left column ---------- */
+  .tips {
     --fill: var(--card); --lip: 5px; --lip-color: var(--card-lip); --r: 24px;
-    position: relative; margin-top: 24px; width: 340px; height: 196px; overflow: hidden; -webkit-app-region: no-drag; cursor: default;
+    margin-top: 24px; width: 340px; padding: 16px 18px 14px; -webkit-app-region: no-drag;
   }
-  .toy-tag { position: absolute; left: 14px; top: 12px; z-index: 2; padding: 3px 10px; border-radius: 999px; background: var(--well); color: var(--ink-2); font-size: 11px; font-weight: 800; pointer-events: none; }
-  .toy-hint { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); opacity: 0.55; font-size: 13px; font-weight: 700; pointer-events: none; transition: opacity 300ms ease; }
-  .toy-hint.gone { opacity: 0; }
-  .toy-btn {
-    position: absolute; right: 12px; top: 10px; z-index: 2; height: 26px; padding: 0 11px; border-radius: 13px; display: inline-flex; align-items: center; gap: 6px;
-    background: var(--well); box-shadow: 0 3px 0 var(--edge); font-size: 11px; font-weight: 800; color: var(--ink-2);
-    transition: transform 180ms var(--bouncy), box-shadow 180ms var(--bouncy);
-  }
-  .toy-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--edge); color: var(--ink); }
-  .toy-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--edge); }
-
-  /* Scrawl: a doodle pad on dotted paper */
-  .toy[data-toy="scrawl"] { background-image: radial-gradient(circle, var(--edge) 1.2px, transparent 1.6px); background-size: 16px 16px; background-position: 8px 8px; }
-  .toy canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; transition: opacity 260ms ease; }
-  .toy canvas.wipe { opacity: 0; }
-
-  /* Spin: a turntable */
-  .toy[data-toy="spin"] { display: flex; align-items: center; gap: 18px; padding: 0 22px 0 18px; }
-  .tt { position: relative; flex: none; width: 168px; height: 168px; }
-  .tt-platter { position: absolute; inset: 0; border-radius: 50%; background: var(--well); box-shadow: inset 0 0 0 2px var(--edge); }
-  .tt-disc { position: absolute; inset: 7px; border-radius: 50%; cursor: grab; touch-action: none; will-change: transform; }
-  .tt-disc:active { cursor: grabbing; }
-  .tt-disc svg { display: block; width: 100%; height: 100%; }
-  .tt-shine { position: absolute; inset: 7px; border-radius: 50%; pointer-events: none; background: conic-gradient(from 20deg, transparent 0 8%, rgba(255,255,255,0.13) 13%, transparent 20% 52%, rgba(255,255,255,0.1) 58%, transparent 66%); }
-  .tt-arm { position: absolute; right: -14px; top: -6px; width: 40px; height: 120px; transform-origin: 30px 12px; rotate: -24deg; transition: rotate 700ms var(--bouncy); pointer-events: none; }
-  .tt.on .tt-arm { rotate: 2deg; }
-  .tt-side { display: grid; gap: 10px; justify-items: start; }
-  .tt-side b { font-size: 15px; line-height: 1.2; }
-  .tt-side small { font-size: 12px; font-weight: 600; color: var(--ink-2); line-height: 1.35; }
-  .tt-side .toy-btn { position: static; }
-  .tt-rpm { font-variant-numeric: tabular-nums; }
-
-  /* Away: a coffee mug to sip from */
-  .toy[data-toy="away"] { display: flex; align-items: center; gap: 14px; padding: 0 22px 0 26px; }
-  .mug { position: relative; flex: none; width: 132px; height: 150px; cursor: pointer; }
-  .mug svg { position: absolute; left: 0; bottom: 0; overflow: visible; transform-origin: 46px 120px; transition: transform 380ms var(--bouncy); }
-  .mug.sip svg { transform: rotate(-16deg) translate(-4px, -6px); }
-  .mug .coffee { transition: transform 600ms var(--smooth); }
-  .mug .steam path { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; opacity: 0; animation: steam 2.6s ease-in-out infinite; }
-  .mug .steam path:nth-child(2) { animation-delay: 0.8s; }
-  .mug .steam path:nth-child(3) { animation-delay: 1.6s; }
-  .mug.empty .steam path { animation: none; opacity: 0; }
-  @keyframes steam { 0% { opacity: 0; transform: translateY(10px); } 35% { opacity: 0.85; } 100% { opacity: 0; transform: translateY(-16px); } }
-  .mug .pour { opacity: 0; transition: opacity 200ms ease; }
-  .mug.pouring .pour { opacity: 1; }
-  .mug-side { display: grid; gap: 6px; }
-  .mug-side b { font-size: 15px; line-height: 1.2; }
-  .mug-side small { font-size: 12px; font-weight: 600; color: var(--ink-2); line-height: 1.35; }
-  .mug-cups { display: flex; gap: 5px; margin-top: 4px; }
-  .mug-cups i { width: 18px; height: 8px; border-radius: 4px; background: var(--accent); transition: background 300ms ease, transform 400ms var(--bouncy); }
-  .mug-cups i.gone { background: var(--well); transform: scale(0.8); }
+  .tips-tag { display: inline-block; margin-bottom: 10px; padding: 3px 10px; border-radius: 999px; background: var(--well); color: var(--ink-2); font-size: 11px; font-weight: 800; }
+  .tips ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .tips li { display: grid; grid-template-columns: 30px 1fr; gap: 11px; align-items: center; font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--ink-2); }
+  .tips li b { color: var(--ink); font-weight: 800; }
+  .tips .ic { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-lip); box-shadow: 0 2px 0 var(--accent); }
+  .tips .ic svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
   /* ---------- updates: Pane's own sheet, and a button in the corner while one is waiting ---------- */
   .upd {
@@ -692,7 +647,14 @@
       </div>
     </div>
     <label class="login-line rise" style="--d:280ms"><button class="switch login small" role="switch" aria-checked="false" aria-label="Open at login"></button>Open Pane at login</label>
-    <div class="toy chunky rise" style="--d:330ms" data-toy="scrawl"></div>
+    <div class="tips chunky rise" style="--d:330ms" aria-label="Good to know">
+      <span class="tips-tag">Good to know</span>
+      <ul>
+        <li><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg></span><span><b>Hold the draw key</b> to draw without clicking. Pick the pencil again to put it down.</span></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/></svg></span><span><b>Hide all</b> tucks your drawings away and keeps them. <b>Clear</b> wipes them.</span></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></span><span><b>Undo</b> keeps the tool in your hand, so you can fix a line and carry on.</span></li>
+      </ul>
+    </div>
   </section>
 
   <section class="card chunky rise" style="--d:90ms" aria-label="Settings">
@@ -766,7 +728,14 @@
       </div>
     </div>
     <label class="login-line rise" style="--d:280ms"><button class="switch login small" role="switch" aria-checked="false" aria-label="Open at login"></button>Open Pane at login</label>
-    <div class="toy chunky rise" style="--d:330ms" data-toy="away"></div>
+    <div class="tips chunky rise" style="--d:330ms" aria-label="Good to know">
+      <span class="tips-tag">Good to know</span>
+      <ul>
+        <li><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14l11-7z"/></svg></span><span><b>Try it</b> shows the Away screen for a moment. Any key or click closes it.</span></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="13" height="10" rx="2"/><path d="M8 18h3M20 8v9a2 2 0 0 1-2 2h-5"/></svg></span><span>Your note shows on <b>every screen</b>, with the glow you pick.</span></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg></span><span>Away’s keys work <b>without Accessibility</b>. It doesn’t lock your Mac.</span></li>
+      </ul>
+    </div>
   </section>
 
   <section class="card chunky rise" style="--d:90ms" aria-label="Away settings">
@@ -855,7 +824,14 @@
       </div>
     </div>
     <label class="login-line rise" style="--d:280ms"><button class="switch login small" role="switch" aria-checked="false" aria-label="Open at login"></button>Open Pane at login</label>
-    <div class="toy chunky rise" style="--d:330ms" data-toy="spin"></div>
+    <div class="tips chunky rise" style="--d:330ms" aria-label="Good to know">
+      <span class="tips-tag">Good to know</span>
+      <ul>
+        <li><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/></svg></span><span><b>Back to the middle</b> cancels, and puts the volume back where it was.</span></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 9.5h3.2L12 5.6v12.8l-4.3-3.9H4.5z"/><path d="M15.6 9.2a4 4 0 0 1 0 5.6"/><path d="M18.4 6.6a7.6 7.6 0 0 1 0 10.8"/></svg></span><span>Over <b>Volume</b>, slide along the arc that comes out to set the level.</span></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h8"/><path d="M17 15l2 2-2 2"/></svg></span><span>Rest on the <b>end of a fan</b> of songs to scroll further along the list.</span></li>
+      </ul>
+    </div>
   </section>
 
   <section class="card chunky rise" style="--d:90ms" aria-label="Spin settings">
@@ -977,6 +953,5 @@
 <script src="switcher.js"></script>
 <script src="demo.js"></script>
 <script src="update.js"></script>
-<script src="toys.js"></script>
 </body>
 </html>

@@ -12,7 +12,7 @@ const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { app, shell, safeStorage } = require('electron');
+const { app, shell } = require('electron');
 
 const APPS = {
   spotify: { name: 'Spotify', bundle: 'com.spotify.client' },
@@ -446,19 +446,24 @@ const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-cu
 const tokenFile = () => path.join(app.getPath('userData'), 'spotify.json');
 let tokens = null; // { clientId, access, refresh, expires, name }
 
+// Kept as plain JSON that only you can read (mode 600), not in the Keychain: Pane is signed locally, so
+// every build looks like a new app to the Keychain and it would ask for your password on each launch.
+// A link saved by an older Pane was encrypted; it can't be read without the Keychain, so it's dropped
+// and Spotify asks to be linked once more.
 function loadTokens() {
   if (tokens) return tokens;
   try {
-    const raw = fs.readFileSync(tokenFile());
-    const text = safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(raw) : raw.toString('utf8');
-    tokens = JSON.parse(text);
-  } catch { tokens = null; }
+    tokens = JSON.parse(fs.readFileSync(tokenFile(), 'utf8'));
+  } catch (e) {
+    tokens = null;
+    if (e.code !== 'ENOENT') try { fs.rmSync(tokenFile()); } catch {}
+  }
   return tokens;
 }
 function saveTokens(t) {
   tokens = t;
-  const text = JSON.stringify(t);
-  fs.writeFileSync(tokenFile(), safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(text) : text, { mode: 0o600 });
+  fs.writeFileSync(tokenFile(), JSON.stringify(t), { mode: 0o600 });
+  try { fs.chmodSync(tokenFile(), 0o600); } catch {}
 }
 function spotifyAccount() {
   const t = loadTokens();

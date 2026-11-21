@@ -9,6 +9,11 @@ const Music = require('./music.js'); // Spin's link to Spotify, Music or the med
 const Updater = require('./updater.js'); // checks GitHub for a newer Pane and offers to install it
 const { execFile } = require('child_process');
 
+// Keep Chromium off the Keychain. It keeps its own "Pane Safe Storage" key there for cookies, and since Pane
+// is signed locally each build looks like a stranger to it, so macOS asked for your password at every launch.
+// Pane keeps nothing secret in cookies, so a stand-in key is fine.
+app.commandLine.appendSwitch('use-mock-keychain');
+
 // ---------- persistence ----------
 // Ring tools. Undo and redo are half-size and start out side by side, so together they fill one slot.
 // Letting go in the middle of the wheel cancels.
