@@ -72,16 +72,16 @@ function showPage(id, animate) {
   if (S && S.page !== id) save({ page: id });
   if (!animate || !from) {
     for (const p of Object.values(PAGES)) p.hidden = p !== to;
-    fit(false);
+    fit();
     return;
   }
-  // Old page sinks away, the new one rises in, and the window grows or shrinks to fit it.
+  // Old page sinks away and the new one rises in.
   from.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(8px) scale(0.985)' }], { duration: 140, easing: 'ease-in', fill: 'forwards' })
     .finished.then(() => {
       from.getAnimations().forEach((a) => a.cancel());
       from.hidden = true;
       to.hidden = false;
-      fit(true);
+      fit();
       to.animate([{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }], { duration: 520, easing: SMOOTH_EASE });
       to.querySelectorAll('.card, .keycap, .brand .mark').forEach((el, i) =>
         el.animate([{ transform: 'translateY(10px) scale(0.92)' }, { transform: 'none' }], { duration: 560, delay: 40 + i * 30, easing: BOUNCY, fill: 'backwards' }));
@@ -89,16 +89,32 @@ function showPage(id, animate) {
 }
 const SMOOTH_EASE = getComputedStyle(document.documentElement).getPropertyValue('--smooth').trim();
 
-// ---------- the window hugs whichever page is showing ----------
+// ---------- one window size for every page ----------
+// The window is as tall as the tallest page (and never shorter than the "Show me how" sheet needs),
+// so switching tools never resizes it. It only grows, if a page's content grows past it.
+const DEMO_ROOM = 580;
+let windowH = 0;
 let fitFrame = 0;
-function fit(animate) {
+function naturalHeight(p) {
+  // Measure every page as if it were showing, without painting the hidden ones.
+  const hidden = p.hidden;
+  p.hidden = false;
+  p.style.cssText += ';position:absolute;visibility:hidden;min-height:0';
+  const h = p.offsetHeight;
+  p.style.position = p.style.visibility = p.style.minHeight = '';
+  p.hidden = hidden;
+  return h;
+}
+function fit() {
   cancelAnimationFrame(fitFrame);
   fitFrame = requestAnimationFrame(() => {
-    const p = PAGES[currentPage];
-    if (p && !p.hidden) scrawl.send('window:fit', p.offsetHeight, animate);
+    const h = Math.max(DEMO_ROOM, ...Object.values(PAGES).map(naturalHeight));
+    if (h <= windowH) return;
+    windowH = h;
+    scrawl.send('window:fit', h, false);
   });
 }
-const ro = new ResizeObserver(() => fit(false));
+const ro = new ResizeObserver(() => fit());
 Object.values(PAGES).forEach((p) => ro.observe(p));
 
 // Fill each brand mark with its tool's glyph.

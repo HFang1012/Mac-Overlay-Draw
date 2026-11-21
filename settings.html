@@ -19,7 +19,10 @@
   button:focus { outline: none; }
   button:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft); border-radius: 12px; }
 
-  .page { display: grid; grid-template-columns: 340px 452px; gap: 30px; padding: 34px 38px 28px; width: 900px; align-items: start; }
+  .page { display: grid; grid-template-columns: 340px 452px; gap: 30px; padding: 56px 38px 28px; width: 900px; align-items: start; }
+  /* The window is one fixed size (the tallest page), so shorter pages sit in the middle of it.
+     The top padding keeps the cards clear of the tool button in the corner. */
+  .page:not([hidden]) { min-height: 100vh; align-content: center; }
 
   /* Lull-style surfaces: a flat fill with a darker lip of the same hue underneath, never an outline. */
   .chunky { position: relative; border-radius: var(--r); background: var(--fill); box-shadow: 0 var(--lip) 0 var(--lip-color); }
@@ -339,8 +342,9 @@
   /* Only claim the window (no-drag) while open: Electron maps drag regions from layout, not opacity, so a
      closed full-window no-drag layer would stop the window from being moved at all. */
   .demo.open { opacity: 1; pointer-events: auto; visibility: visible; transition: opacity 200ms ease; -webkit-app-region: no-drag; }
+  /* The sheet never outgrows the window: the stage gives up height first, down to a floor. */
   .demo-sheet {
-    width: 620px; padding: 20px 24px 20px; border-radius: 30px; background: var(--card); cursor: default;
+    width: 600px; max-height: calc(100vh - 36px); display: flex; flex-direction: column; padding: 18px 22px 18px; border-radius: 30px; background: var(--card); cursor: default;
     box-shadow: 0 8px 0 var(--card-lip), 0 30px 70px rgba(20, 18, 28, 0.25);
     transform: translateY(18px) scale(0.92); transition: transform 460ms var(--bouncy);
   }
@@ -352,7 +356,7 @@
   .demo-close:hover { background: var(--paper-deep); transform: rotate(90deg); }
   .demo-close:active { transform: rotate(90deg) scale(0.86); }
 
-  .stage { position: relative; height: 290px; margin-top: 14px; border-radius: 20px; overflow: hidden; isolation: isolate; box-shadow: 0 5px 0 var(--card-lip); }
+  .stage { position: relative; flex: 0 1 250px; min-height: 170px; margin-top: 12px; border-radius: 20px; overflow: hidden; isolation: isolate; box-shadow: 0 5px 0 var(--card-lip); }
   .stage .bg { position: absolute; inset: -12px; transition: filter 600ms var(--smooth); background: var(--stage-bg); }
   [data-theme="scrawl"] .stage { --stage-bg: linear-gradient(135deg, #CBD5E3, #DCE4EE 50%, #D7D2E4); --win: #FFFFFF; --bar: #E7ECF3; --line: #D5DCE6; --dark: #2C3240; }
   [data-theme="away"] .stage { --stage-bg: linear-gradient(135deg, #D9CFC1, #E9DCCB 45%, #CFC6DA); --win: #FFFDF9; --bar: #EEE6DA; --line: #D9D0C3; --dark: #3B3646; }
@@ -395,7 +399,7 @@
   .stage.away .dblob { opacity: 0.6; }
   .stage.away .dnote { opacity: 1; transform: translate(-50%, -50%); transition-delay: 120ms; }
 
-  .demo-keys { display: flex; justify-content: center; align-items: flex-end; gap: 14px; margin-top: 18px; min-height: 76px; }
+  .demo-keys { display: flex; justify-content: center; align-items: flex-end; gap: 14px; margin-top: 14px; min-height: 72px; flex: none; }
   .dkey { display: grid; justify-items: center; gap: 6px; }
   .dkey .cap {
     min-width: 50px; height: 46px; padding: 0 12px; border-radius: 13px; display: grid; place-items: center;
@@ -405,10 +409,10 @@
   .dkey .cap.word { font-size: 14px; }
   .dkey .cap.down { transform: translateY(4px); box-shadow: 0 1px 0 var(--accent-lip); background: var(--accent-soft); }
   .dkey small { font-size: 11px; font-weight: 700; color: var(--ink-2); min-height: 15px; }
-  .demo-step { text-align: center; font-size: 16px; font-weight: 800; margin: 12px 0 0; min-height: 23px; }
+  .demo-step { text-align: center; font-size: 16px; font-weight: 800; margin: 10px 0 0; min-height: 23px; flex: none; }
   .demo-step span { display: inline-block; animation: step-in 420ms var(--bouncy); }
   @keyframes step-in { from { opacity: 0; transform: translateY(8px); } }
-  .demo-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+  .demo-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; flex: none; }
   .dots { display: flex; gap: 6px; }
   .dots span { width: 8px; height: 8px; border-radius: 4px; background: var(--edge); transition: width 320ms var(--bouncy), background 200ms ease; }
   .dots span.on { width: 22px; background: var(--accent-lip); }

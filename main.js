@@ -1111,7 +1111,7 @@ ipcMain.handle('bind:start', (_e, which) => {
   cancelSpin();
   return true;
 });
-// The settings page measures itself, and the fixed-width window hugs that height.
+// The settings page measures its tallest page, and the fixed-width window takes that height.
 // The window's own color (seen for a moment while it resizes) follows the tool's theme.
 ipcMain.on('window:bg', (_e, color) => { if (/^#[0-9a-f]{6}$/i.test(color)) settingsWin?.setBackgroundColor(color); });
 ipcMain.on('window:fit', (_e, h, animate) => {
