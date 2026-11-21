@@ -1190,6 +1190,7 @@ app.whenReady().then(() => {
   }
   registerAwayKey();
   buildMenu();
+  askForAccess();
   // Without Accessibility access the hook can't start. Keep trying, so granting access
   // in System Settings takes effect without a restart.
   startHook();
@@ -1205,6 +1206,20 @@ app.whenReady().then(() => {
     },
   });
 });
+
+// Ask for everything Pane needs as it opens, rather than the first time a tool needs it:
+// Accessibility (Scrawl's and Spin's keys) and Screen Recording (the color picker).
+// macOS shows each prompt only once, so this never nags; the settings page still helps if one was declined.
+function askForAccess() {
+  if (process.env.SCRAWL_TEST) return;
+  if (!trusted()) systemPreferences.isTrustedAccessibilityClient(true);
+  if (systemPreferences.getMediaAccessStatus('screen') !== 'granted') {
+    // Asking for a tiny screen photo is what makes macOS put up its Screen Recording prompt
+    // (and adds Pane to the list in Privacy & Security). The photo itself is thrown away.
+    desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1, height: 1 } })
+      .catch((err) => console.warn('Screen Recording request failed:', err.message));
+  }
+}
 
 let hookOn = false;
 let hookTimer = null;
