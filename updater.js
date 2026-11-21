@@ -1,9 +1,10 @@
 // Updates from GitHub releases. Pane is signed only locally, so Electron's built-in updater
 // (which needs an Apple Developer signature) can't be used. Instead:
-//   1. ask GitHub for the newest release, and if it's newer, show what changed since this version
-//   2. on yes: download Pane.dmg, copy Pane.app out of it, and check it's the version we expect
-//   3. quit, and a tiny shell script swaps the new Pane.app in place of this one and opens it
-const { app, dialog, net, shell, BrowserWindow } = require('electron');
+//   1. ask GitHub for the newest release; if it's newer, the settings window shows Pane's own update
+//      sheet with what changed since this version
+//   2. on "Update and Restart": download Pane.dmg, copy Pane.app out of it, check it's the version we expect
+//   3. put it where this Pane.app is (or in /Applications, if Pane is running from the disk image) and reopen
+const { app, net, BrowserWindow } = require('electron');
 const { execFile, spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -11,13 +12,22 @@ const path = require('path');
 
 const REPO = 'HFang1012/Pane-Mac';
 const API = `https://api.github.com/repos/${REPO}/releases?per_page=20`;
-const PAGE = `https://github.com/${REPO}/releases/latest`;
 const FIRST_CHECK = 15 * 1000;
 const EVERY = 6 * 60 * 60 * 1000;
 
 let store = { get: () => ({}), set: () => {} };
-let busy = false;
+let onState = () => {};
+let reveal = () => {};
 let timer = null;
+let latestAsset = null;
+
+// What the settings window shows. status: idle | checking | current | available | downloading | installing | error
+let state = { status: 'idle', version: '', notes: [], progress: 0, error: '', open: false };
+const get = () => ({ ...state, current: currentVersion(), canInstall: canInstall() });
+function set(patch) {
+  state = { ...state, ...patch };
+  onState(get());
+}
 
 // Lets the update flow be tried from a dev build: PANE_PRETEND_VERSION=1.0.0 npm start
 const currentVersion = () => process.env.PANE_PRETEND_VERSION || app.getVersion();
@@ -32,103 +42,105 @@ function newer(a, b) {
 }
 
 const run = (cmd, args) => new Promise((resolve, reject) =>
-  execFile(cmd, args, (err, stdout, stderr) => (err ? reject(new Error(stderr || err.message)) : resolve(stdout))));
+  execFile(cmd, args, (err, stdout, stderr) => (err ? reject(new Error((stderr || err.message).trim())) : resolve(stdout))));
 
+// ---------- where the update goes ----------
 // The Pane.app this process is running from (…/Pane.app/Contents/MacOS/Pane).
 const bundlePath = () => path.resolve(app.getPath('exe'), '..', '..', '..');
-
-// Where an update can't be swapped in place: a dev build, the disk image itself, or a copy macOS
-// is running from a hidden, read-only spot (App Translocation) because it was never moved.
-function canInstallInPlace() {
+const canInstall = () => app.isPackaged && bundlePath().endsWith('.app');
+// Running from the disk image, or from the hidden read-only copy macOS makes of an app that was
+// never moved (App Translocation): the update goes to /Applications instead.
+function installTarget() {
   const b = bundlePath();
-  if (!app.isPackaged || !b.endsWith('.app')) return false;
-  if (b.startsWith('/Volumes/') || b.includes('/AppTranslocation/')) return false;
-  try { fs.accessSync(path.dirname(b), fs.constants.W_OK); return true; } catch { return false; }
+  if (b.startsWith('/Volumes/') || b.includes('/AppTranslocation/')) return '/Applications/Pane.app';
+  return b;
+}
+function writable(p) {
+  try { fs.accessSync(p, fs.constants.W_OK); return true; } catch { return false; }
 }
 
 // ---------- asking GitHub ----------
 async function fetchReleases() {
   const res = await net.fetch(API, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Pane-updater' } });
-  if (!res.ok) throw new Error(`GitHub said ${res.status}`);
+  if (!res.ok) throw new Error(`GitHub answered ${res.status}. Try again in a little while.`);
   return (await res.json()).filter((r) => !r.draft && !r.prerelease && /^v?\d+(\.\d+)*$/.test(r.tag_name));
 }
 
-// Every release newer than this one, newest first, folded into one changelog.
+// Every release newer than this one, newest first: [{ version, items: [...] }]
 function changelog(releases, from) {
-  const lines = [];
-  for (const r of releases) {
-    if (!newer(r.tag_name, from)) continue;
-    const body = String(r.body || '')
-      .replace(/\r/g, '')
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l && !/^\*\*Full Changelog\*\*/i.test(l) && !/^#+\s*What's Changed/i.test(l))
-      .map((l) => l.replace(/^[-*]\s+/, '• '));
-    lines.push(`Pane ${r.tag_name.replace(/^v/, '')}`);
-    lines.push(...(body.length ? body : ['• Small fixes and improvements']));
-    lines.push('');
-  }
-  let text = lines.join('\n').trim();
-  if (text.length > 1800) text = text.slice(0, 1800).replace(/\n[^\n]*$/, '') + '\n…and more on the releases page.';
-  return text;
+  return releases
+    .filter((r) => newer(r.tag_name, from))
+    .sort((a, b) => (newer(a.tag_name, b.tag_name) ? -1 : 1))
+    .map((r) => {
+      const items = String(r.body || '')
+        .replace(/\r/g, '')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => /^[-*]\s+/.test(l) && !/Full Changelog/i.test(l))
+        .map((l) => l.replace(/^[-*]\s+/, '').replace(/\*\*/g, ''));
+      return { version: r.tag_name.replace(/^v/, ''), items: items.length ? items : ['Small fixes and improvements'] };
+    });
 }
 
 // ---------- the check ----------
 async function check({ manual = false } = {}) {
-  if (busy) return;
-  busy = true;
+  if (['checking', 'downloading', 'installing'].includes(state.status)) { if (manual) { set({ open: true }); reveal(true); } return; }
+  const was = state;
+  set({ status: 'checking', error: '', open: manual || was.open });
+  if (manual) reveal(true);
   try {
     const releases = await fetchReleases();
-    const latest = releases.reduce((best, r) => (!best || newer(r.tag_name, best.tag_name) ? r : best), null);
     const have = currentVersion();
+    const latest = releases.reduce((best, r) => (!best || newer(r.tag_name, best.tag_name) ? r : best), null);
     if (!latest || !newer(latest.tag_name, have)) {
-      if (manual) await dialog.showMessageBox({ type: 'info', message: 'Pane is up to date', detail: `You have the newest version, ${have}.`, buttons: ['OK'] });
+      set({ status: 'current', version: '', notes: [], open: manual });
       return;
     }
     const version = latest.tag_name.replace(/^v/, '');
-    if (!manual && store.get().skipped === version) return;
-
-    const dmg = (latest.assets || []).find((a) => a.name.endsWith('.dmg'));
-    const inPlace = dmg && canInstallInPlace();
-    app.focus({ steal: true }); // Pane lives in the background: bring the question to the front
-    const buttons = inPlace ? ['Update and Restart', 'Later', 'Skip This Version'] : ['Download', 'Later', 'Skip This Version'];
-    const { response } = await dialog.showMessageBox({
-      type: 'info',
-      message: `Pane ${version} is available`,
-      detail: `You have ${have}. What's new:\n\n${changelog(releases, have)}`,
-      buttons,
-      defaultId: 0,
-      cancelId: 1,
-    });
-    if (response === 2) store.set({ skipped: version });
-    if (response !== 0) return;
-    if (!inPlace) { shell.openExternal(latest.html_url || PAGE); return; }
-    await install(dmg, version);
+    latestAsset = (latest.assets || []).find((a) => a.name.endsWith('.dmg')) || null;
+    // Pops up by itself once per version, unless skipped; the update button in the corner always offers it.
+    const seen = was.version === version;
+    const popUp = manual || (!seen && store.get().skipped !== version);
+    set({ status: 'available', version, notes: changelog(releases, have), progress: 0, open: popUp || was.open });
+    if (popUp) reveal(manual);
   } catch (err) {
     console.warn('Update check failed:', err.message);
-    if (manual) await dialog.showMessageBox({ type: 'warning', message: "Couldn't check for updates", detail: err.message, buttons: ['OK'] });
-  } finally {
-    busy = false;
+    // A background check that fails stays quiet, and keeps offering any update it found before.
+    if (manual) set({ status: 'error', error: `Couldn't check for updates. ${err.message}`, open: true });
+    else set({ status: was.version ? 'available' : 'idle', open: was.open });
   }
 }
 
+function later() { set({ open: false }); }
+function skip() {
+  if (state.version) store.set({ ...store.get(), skipped: state.version });
+  set({ open: false });
+}
+function open() {
+  if (state.version || state.status === 'checking') set({ open: true });
+  else check({ manual: true });
+}
+
 // ---------- download and swap ----------
-function setProgress(p) {
+let lastSent = 0;
+function progress(p) {
   for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.setProgressBar(p);
+  const now = Date.now();
+  if (p >= 0 && p <= 1 && (now - lastSent > 80 || p === 1)) { lastSent = now; set({ progress: p }); }
 }
 
 async function download(url, size, to) {
   const res = await net.fetch(url, { headers: { 'User-Agent': 'Pane-updater' } });
-  if (!res.ok || !res.body) throw new Error(`Download failed (${res.status})`);
+  if (!res.ok || !res.body) throw new Error(`The download didn't start (${res.status}).`);
   const out = fs.createWriteStream(to);
   let got = 0;
   for await (const chunk of res.body) {
     got += chunk.length;
-    if (size) setProgress(Math.min(got / size, 1));
+    if (size) progress(Math.min(got / size, 1));
     if (!out.write(chunk)) await new Promise((r) => out.once('drain', r));
   }
   await new Promise((resolve, reject) => out.end((err) => (err ? reject(err) : resolve())));
-  if (size && got !== size) throw new Error('The download was incomplete.');
+  if (size && got !== size) throw new Error('The download was cut short.');
 }
 
 // Downloads the release and unpacks Pane.app into a private folder. Returns where it put it.
@@ -139,7 +151,6 @@ async function prepare(asset, version) {
   const staged = path.join(work, 'Pane.app');
   try {
     await download(asset.browser_download_url, asset.size, dmgFile);
-    setProgress(2); // indeterminate while unpacking
     fs.mkdirSync(mount);
     await run('hdiutil', ['attach', dmgFile, '-nobrowse', '-readonly', '-noautoopen', '-mountpoint', mount]);
     try {
@@ -158,55 +169,69 @@ async function prepare(asset, version) {
   }
 }
 
-// Runs on its own once Pane (process PID) has quit: puts the old app aside, moves the new one in,
-// opens it and tidies up. If the move fails, the old app goes back so Pane is never left missing.
+// Puts the new app in place. The old one is set aside first and comes back if anything fails,
+// so Pane is never left missing.
 const SWAP = `
-while kill -0 "$PID" 2>/dev/null; do sleep 0.2; done
 old="$WORK/Pane-old.app"
-if mv "$TARGET" "$old" && mv "$STAGED" "$TARGET"; then
-  rm -rf "$old"
-else
-  [ -d "$TARGET" ] || mv "$old" "$TARGET"
-fi
-[ -n "$NO_OPEN" ] || open "$TARGET"
-rm -rf "$WORK"
+if [ -e "$TARGET" ]; then mv "$TARGET" "$old" || exit 1; fi
+if mv "$STAGED" "$TARGET"; then rm -rf "$old"; else [ -e "$old" ] && mv "$old" "$TARGET"; exit 1; fi
 `;
-function swapAfterExit({ work, staged, target, pid, open = true }) {
-  const child = spawn('/bin/sh', ['-c', SWAP], {
-    detached: true,
-    stdio: 'ignore',
-    env: { ...process.env, PID: String(pid), WORK: work, TARGET: target, STAGED: staged, NO_OPEN: open ? '' : '1' },
-  });
-  child.unref();
-  return child;
+const shq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+async function swapIn({ work, staged, target }) {
+  const script = `WORK=${shq(work)}; TARGET=${shq(target)}; STAGED=${shq(staged)}; ${SWAP}`;
+  if (writable(path.dirname(target)) && (!fs.existsSync(target) || writable(target))) {
+    await run('/bin/sh', ['-c', script]);
+  } else {
+    // The folder belongs to an administrator: macOS asks for a password once to put the update there.
+    const quoted = script.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    await run('osascript', ['-e', `do shell script "${quoted}" with administrator privileges`]);
+  }
 }
 
-async function install(asset, version) {
+// Once this process has quit, open the new app and tidy up.
+function reopenAfterExit({ work, target, pid, openIt = true }) {
+  const script = 'while kill -0 "$PID" 2>/dev/null; do sleep 0.2; done; [ -n "$NO_OPEN" ] || open "$TARGET"; rm -rf "$WORK"';
+  const child = spawn('/bin/sh', ['-c', script], {
+    detached: true, stdio: 'ignore',
+    env: { ...process.env, PID: String(pid), WORK: work, TARGET: target, NO_OPEN: openIt ? '' : '1' },
+  });
+  child.unref();
+}
+
+async function install() {
+  if (state.status !== 'available' && state.status !== 'error') return;
+  if (!latestAsset) { await check({ manual: true }); if (!latestAsset) return; }
+  if (!canInstall()) { set({ status: 'error', error: 'Updates install from the Pane app, not a development build.', open: true }); return; }
   let ready;
+  const target = installTarget();
   try {
-    setProgress(0.01);
-    ready = await prepare(asset, version);
+    set({ status: 'downloading', progress: 0, error: '', open: true });
+    ready = await prepare(latestAsset, state.version);
+    set({ status: 'installing' });
+    progress(2); // the Dock's bar spins while it's put in place
+    // Swapping a running app's bundle is safe on macOS: this process keeps its files open until it quits.
+    await swapIn({ ...ready, target });
   } catch (err) {
-    setProgress(-1);
-    const { response } = await dialog.showMessageBox({
-      type: 'warning', message: "Pane couldn't update itself", detail: `${err.message}\n\nYou can download it from GitHub instead.`,
-      buttons: ['Open Download Page', 'Cancel'], defaultId: 0, cancelId: 1,
-    });
-    if (response === 0) shell.openExternal(PAGE);
+    progress(-1);
+    if (ready) fs.rmSync(ready.work, { recursive: true, force: true });
+    const cancelled = /User canceled|-128/.test(err.message);
+    set({ status: 'error', error: cancelled ? 'The update needs your Mac password to finish.' : `The update didn't finish. ${err.message}` });
     return;
   }
-  setProgress(-1);
-  swapAfterExit({ ...ready, target: bundlePath(), pid: process.pid });
+  progress(-1);
+  reopenAfterExit({ work: ready.work, target, pid: process.pid });
   app.quit();
 }
 
 // ---------- wiring ----------
 function start(opts = {}) {
   if (opts.store) store = opts.store;
-  if (!app.isPackaged && !process.env.PANE_PRETEND_VERSION) return; // dev builds don't nag
+  if (opts.onState) onState = opts.onState;
+  if (opts.reveal) reveal = opts.reveal;
+  if (!app.isPackaged && !process.env.PANE_PRETEND_VERSION) return; // dev builds don't check by themselves
   setTimeout(() => check(), FIRST_CHECK);
   clearInterval(timer);
   timer = setInterval(() => check(), EVERY);
 }
 
-module.exports = { start, check, newer, changelog, _test: { fetchReleases, prepare, swapAfterExit } };
+module.exports = { start, check, get, install, later, skip, open, newer, changelog, _test: { fetchReleases, prepare, swapIn, reopenAfterExit } };

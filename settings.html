@@ -20,9 +20,8 @@
   button:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft); border-radius: 12px; }
 
   .page { display: grid; grid-template-columns: 340px 452px; gap: 30px; padding: 56px 38px 28px; width: 900px; align-items: start; }
-  /* The window is one fixed size (the tallest page), so shorter pages sit in the middle of it.
+  /* The window is one fixed size (the tallest page); shorter pages start at the top like the rest.
      The top padding keeps the cards clear of the tool button in the corner. */
-  .page:not([hidden]) { min-height: 100vh; align-content: center; }
 
   /* Lull-style surfaces: a flat fill with a darker lip of the same hue underneath, never an outline. */
   .chunky { position: relative; border-radius: var(--r); background: var(--fill); box-shadow: 0 var(--lip) 0 var(--lip-color); }
@@ -419,6 +418,131 @@
   .dots span.done { background: var(--accent); }
   .demo-foot .pill { margin: 0 0 4px; }
 
+  /* ---------- a toy for each tool, in the space under the left column ---------- */
+  .toy {
+    --fill: var(--card); --lip: 5px; --lip-color: var(--card-lip); --r: 24px;
+    position: relative; margin-top: 24px; width: 340px; height: 196px; overflow: hidden; -webkit-app-region: no-drag; cursor: default;
+  }
+  .toy-tag { position: absolute; left: 14px; top: 12px; z-index: 2; padding: 3px 10px; border-radius: 999px; background: var(--well); color: var(--ink-2); font-size: 11px; font-weight: 800; pointer-events: none; }
+  .toy-hint { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); opacity: 0.55; font-size: 13px; font-weight: 700; pointer-events: none; transition: opacity 300ms ease; }
+  .toy-hint.gone { opacity: 0; }
+  .toy-btn {
+    position: absolute; right: 12px; top: 10px; z-index: 2; height: 26px; padding: 0 11px; border-radius: 13px; display: inline-flex; align-items: center; gap: 6px;
+    background: var(--well); box-shadow: 0 3px 0 var(--edge); font-size: 11px; font-weight: 800; color: var(--ink-2);
+    transition: transform 180ms var(--bouncy), box-shadow 180ms var(--bouncy);
+  }
+  .toy-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--edge); color: var(--ink); }
+  .toy-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--edge); }
+
+  /* Scrawl: a doodle pad on dotted paper */
+  .toy[data-toy="scrawl"] { background-image: radial-gradient(circle, var(--edge) 1.2px, transparent 1.6px); background-size: 16px 16px; background-position: 8px 8px; }
+  .toy canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; transition: opacity 260ms ease; }
+  .toy canvas.wipe { opacity: 0; }
+
+  /* Spin: a turntable */
+  .toy[data-toy="spin"] { display: flex; align-items: center; gap: 18px; padding: 0 22px 0 18px; }
+  .tt { position: relative; flex: none; width: 168px; height: 168px; }
+  .tt-platter { position: absolute; inset: 0; border-radius: 50%; background: var(--well); box-shadow: inset 0 0 0 2px var(--edge); }
+  .tt-disc { position: absolute; inset: 7px; border-radius: 50%; cursor: grab; touch-action: none; will-change: transform; }
+  .tt-disc:active { cursor: grabbing; }
+  .tt-disc svg { display: block; width: 100%; height: 100%; }
+  .tt-shine { position: absolute; inset: 7px; border-radius: 50%; pointer-events: none; background: conic-gradient(from 20deg, transparent 0 8%, rgba(255,255,255,0.13) 13%, transparent 20% 52%, rgba(255,255,255,0.1) 58%, transparent 66%); }
+  .tt-arm { position: absolute; right: -14px; top: -6px; width: 40px; height: 120px; transform-origin: 30px 12px; rotate: -24deg; transition: rotate 700ms var(--bouncy); pointer-events: none; }
+  .tt.on .tt-arm { rotate: 2deg; }
+  .tt-side { display: grid; gap: 10px; justify-items: start; }
+  .tt-side b { font-size: 15px; line-height: 1.2; }
+  .tt-side small { font-size: 12px; font-weight: 600; color: var(--ink-2); line-height: 1.35; }
+  .tt-side .toy-btn { position: static; }
+  .tt-rpm { font-variant-numeric: tabular-nums; }
+
+  /* Away: a coffee mug to sip from */
+  .toy[data-toy="away"] { display: flex; align-items: center; gap: 14px; padding: 0 22px 0 26px; }
+  .mug { position: relative; flex: none; width: 132px; height: 150px; cursor: pointer; }
+  .mug svg { position: absolute; left: 0; bottom: 0; overflow: visible; transform-origin: 46px 120px; transition: transform 380ms var(--bouncy); }
+  .mug.sip svg { transform: rotate(-16deg) translate(-4px, -6px); }
+  .mug .coffee { transition: transform 600ms var(--smooth); }
+  .mug .steam path { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; opacity: 0; animation: steam 2.6s ease-in-out infinite; }
+  .mug .steam path:nth-child(2) { animation-delay: 0.8s; }
+  .mug .steam path:nth-child(3) { animation-delay: 1.6s; }
+  .mug.empty .steam path { animation: none; opacity: 0; }
+  @keyframes steam { 0% { opacity: 0; transform: translateY(10px); } 35% { opacity: 0.85; } 100% { opacity: 0; transform: translateY(-16px); } }
+  .mug .pour { opacity: 0; transition: opacity 200ms ease; }
+  .mug.pouring .pour { opacity: 1; }
+  .mug-side { display: grid; gap: 6px; }
+  .mug-side b { font-size: 15px; line-height: 1.2; }
+  .mug-side small { font-size: 12px; font-weight: 600; color: var(--ink-2); line-height: 1.35; }
+  .mug-cups { display: flex; gap: 5px; margin-top: 4px; }
+  .mug-cups i { width: 18px; height: 8px; border-radius: 4px; background: var(--accent); transition: background 300ms ease, transform 400ms var(--bouncy); }
+  .mug-cups i.gone { background: var(--well); transform: scale(0.8); }
+
+  /* ---------- updates: Pane's own sheet, and a button in the corner while one is waiting ---------- */
+  .upd {
+    position: fixed; inset: 0; z-index: 40; display: grid; place-items: center;
+    background: color-mix(in srgb, var(--ink) 30%, transparent); opacity: 0; pointer-events: none; visibility: hidden;
+    transition: opacity 200ms ease, visibility 0s linear 200ms;
+  }
+  .upd.open { opacity: 1; pointer-events: auto; visibility: visible; transition: opacity 200ms ease; -webkit-app-region: no-drag; }
+  .upd-sheet {
+    width: 440px; max-height: calc(100vh - 48px); display: flex; flex-direction: column; padding: 20px 22px 18px; border-radius: 30px;
+    background: var(--card); cursor: default; box-shadow: 0 8px 0 var(--card-lip), 0 30px 70px rgba(20, 18, 28, 0.25);
+    transform: translateY(18px) scale(0.92); transition: transform 460ms var(--bouncy);
+  }
+  .upd.open .upd-sheet { transform: none; }
+  .upd-sheet:focus { outline: none; }
+  .upd-head { display: grid; grid-template-columns: 46px 1fr 32px; gap: 14px; align-items: center; flex: none; }
+  .upd-badge {
+    width: 46px; height: 46px; border-radius: 15px; display: grid; place-items: center; color: var(--ink);
+    background: var(--accent); box-shadow: 0 4px 0 var(--accent-lip);
+  }
+  .upd.busy .upd-badge svg { animation: upd-bob 1s var(--smooth) infinite alternate; }
+  @keyframes upd-bob { to { transform: translateY(-4px); } }
+  .upd-head h2 { font-size: 18px; font-weight: 800; margin: 0; line-height: 1.2; }
+  .upd-head p { margin: 2px 0 0; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+  .upd-notes {
+    margin: 16px 0 0; padding: 4px 16px; border-radius: 18px; background: var(--well); overflow-y: auto; min-height: 0; flex: 0 1 auto;
+    -webkit-app-region: no-drag; user-select: text;
+  }
+  .upd-notes:empty { display: none; }
+  .upd-notes section { padding: 12px 0; }
+  .upd-notes section + section { border-top: 2px dashed var(--edge); }
+  .upd-notes h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 13px; font-weight: 800; }
+  .upd-notes h3 small { padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+  .upd-notes ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+  .upd-notes li { position: relative; padding-left: 16px; font-size: 12.5px; font-weight: 600; line-height: 1.4; color: var(--ink-2); }
+  .upd-notes li::before { content: ""; position: absolute; left: 2px; top: 6px; width: 6px; height: 6px; border-radius: 3px; background: var(--accent-lip); }
+  .upd-bar { height: 10px; margin: 18px 0 0; border-radius: 5px; background: var(--well); overflow: hidden; flex: none; display: none; }
+  .upd-bar i { display: block; height: 100%; width: calc(var(--p, 0) * 100%); border-radius: 5px; background: var(--accent-lip); transition: width 160ms linear; }
+  .upd.busy .upd-bar { display: block; }
+  .upd.installing .upd-bar i { width: 40%; animation: upd-slide 1.1s ease-in-out infinite; }
+  @keyframes upd-slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+  .upd-msg { margin: 10px 0 0; min-height: 17px; font-size: 12px; font-weight: 700; color: var(--ink-2); flex: none; }
+  .upd-msg:empty { display: none; }
+  .upd.error .upd-msg { color: var(--accent-ink); }
+  .upd-foot { display: flex; align-items: center; gap: 8px; margin-top: 16px; flex: none; }
+  .upd-foot .grow { flex: 1; }
+  .upd-foot .pill { margin: 0 0 4px; height: 34px; padding: 0 18px; font-size: 13px; }
+  .upd-foot .pill:disabled { opacity: 0.6; transform: none; box-shadow: 0 4px 0 var(--accent-lip); cursor: default; }
+  .upd-skip { font-size: 12px; font-weight: 700; color: var(--ink-2); padding: 6px 4px; }
+  .upd-skip:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+  .upd-later { height: 34px; padding: 0 16px; border-radius: 17px; margin-bottom: 4px; font-size: 13px; font-weight: 700; background: var(--well); box-shadow: 0 4px 0 var(--edge); transition: transform 180ms var(--bouncy), box-shadow 180ms var(--bouncy); }
+  .upd-later:hover { transform: translateY(-1px); box-shadow: 0 5px 0 var(--edge); }
+  .upd-later:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--edge); }
+  .upd [hidden] { display: none !important; }
+
+  .upd-corner {
+    position: fixed; left: 38px; bottom: 20px; z-index: 9; height: 32px; padding: 0 14px 0 6px; border-radius: 16px;
+    display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800;
+    background: var(--card); box-shadow: 0 4px 0 var(--accent);
+    opacity: 0; transform: translateY(14px) scale(0.9); pointer-events: none;
+    transition: opacity 200ms ease, transform 420ms var(--bouncy), box-shadow 200ms var(--bouncy);
+  }
+  .upd-corner.show { opacity: 1; transform: none; pointer-events: auto; }
+  .upd-corner.show:hover { transform: translateY(-1px); box-shadow: 0 5px 0 var(--accent); }
+  .upd-corner.show:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--accent-lip); }
+  .upd-corner .dot { width: 22px; height: 22px; border-radius: 11px; display: grid; place-items: center; background: var(--accent); color: var(--ink); position: relative; }
+  .upd-corner .dot::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--accent); animation: upd-ping 1.8s ease-out infinite; }
+  @keyframes upd-ping { from { opacity: 0.9; transform: scale(0.8); } to { opacity: 0; transform: scale(1.5); } }
+
   /* ---------- Spin page ---------- */
   .keycap.sided { position: relative; }
   .keycap .side {
@@ -568,6 +692,7 @@
       </div>
     </div>
     <label class="login-line rise" style="--d:280ms"><button class="switch login small" role="switch" aria-checked="false" aria-label="Open at login"></button>Open Pane at login</label>
+    <div class="toy chunky rise" style="--d:330ms" data-toy="scrawl"></div>
   </section>
 
   <section class="card chunky rise" style="--d:90ms" aria-label="Settings">
@@ -641,6 +766,7 @@
       </div>
     </div>
     <label class="login-line rise" style="--d:280ms"><button class="switch login small" role="switch" aria-checked="false" aria-label="Open at login"></button>Open Pane at login</label>
+    <div class="toy chunky rise" style="--d:330ms" data-toy="away"></div>
   </section>
 
   <section class="card chunky rise" style="--d:90ms" aria-label="Away settings">
@@ -729,6 +855,7 @@
       </div>
     </div>
     <label class="login-line rise" style="--d:280ms"><button class="switch login small" role="switch" aria-checked="false" aria-label="Open at login"></button>Open Pane at login</label>
+    <div class="toy chunky rise" style="--d:330ms" data-toy="spin"></div>
   </section>
 
   <section class="card chunky rise" style="--d:90ms" aria-label="Spin settings">
@@ -822,6 +949,25 @@
     <p class="menu-title">Pane tools</p>
   </div>
 </div>
+<div class="upd" id="upd" role="dialog" aria-modal="true" aria-labelledby="updTitle">
+  <div class="upd-sheet" tabindex="-1">
+    <div class="upd-head">
+      <span class="upd-badge"><svg width="22" height="22" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3.5M3.8 7.6L8 3.4l4.2 4.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div><h2 id="updTitle">Checking for updates…</h2><p id="updSub"></p></div>
+      <button class="demo-close" id="updClose" aria-label="Close"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="upd-notes" id="updNotes"></div>
+    <div class="upd-bar" id="updBar"><i></i></div>
+    <p class="upd-msg" id="updMsg" aria-live="polite"></p>
+    <div class="upd-foot">
+      <button class="upd-skip" id="updSkip">Skip this version</button>
+      <span class="grow"></span>
+      <button class="upd-later" id="updLater">Later</button>
+      <button class="pill" id="updGo">Update and Restart</button>
+    </div>
+  </div>
+</div>
+<button class="upd-corner" id="updCorner" tabindex="-1"><span class="dot"><svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3.5M3.8 7.6L8 3.4l4.2 4.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span id="updCornerText">Update</span></button>
 <script src="wheel.js"></script>
 <script src="tools.js"></script>
 <script src="settings.js"></script>
@@ -830,5 +976,7 @@
 <script src="spin-settings.js"></script>
 <script src="switcher.js"></script>
 <script src="demo.js"></script>
+<script src="update.js"></script>
+<script src="toys.js"></script>
 </body>
 </html>

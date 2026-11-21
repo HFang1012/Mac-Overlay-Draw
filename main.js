@@ -1119,6 +1119,13 @@ ipcMain.on('window:fit', (_e, h, animate) => {
   if (settingsWin && h > 300 && h < 1400) settingsWin.setContentSize(900, Math.ceil(h), !!animate && settingsWin.isVisible());
 });
 ipcMain.on('bind:cancel', () => { binding = false; });
+// Pane's own update sheet in the settings window (see updater.js).
+ipcMain.handle('update:get', () => Updater.get());
+ipcMain.on('update:open', () => Updater.open());
+ipcMain.on('update:later', () => Updater.later());
+ipcMain.on('update:skip', () => Updater.skip());
+ipcMain.on('update:install', () => Updater.install());
+ipcMain.on('update:check', () => Updater.check({ manual: true }));
 ipcMain.handle('perm:check', () => ({ trusted: trusted(), listening: hookOn, awayKey: awayKeyOn }));
 ipcMain.on('perm:open', () => {
   systemPreferences.isTrustedAccessibilityClient(true);
@@ -1182,7 +1189,16 @@ app.whenReady().then(() => {
   // in System Settings takes effect without a restart.
   startHook();
   hookTimer = setInterval(startHook, 1500);
-  Updater.start({ store: { get: () => readJSON('update.json', {}), set: (v) => writeJSON('update.json', v) } });
+  Updater.start({
+    store: { get: () => readJSON('update.json', {}), set: (v) => writeJSON('update.json', v) },
+    onState: (s) => settingsWin?.webContents.send('update:state', s),
+    // Asked for (menu, button): come forward. Found in the background: appear without taking the keyboard,
+    // so a key meant for another app can't press anything in the update sheet.
+    reveal: (asked) => {
+      if (!settingsWin) return;
+      if (asked) { settingsWin.show(); settingsWin.focus(); app.focus({ steal: true }); } else if (!settingsWin.isVisible()) settingsWin.showInactive();
+    },
+  });
 });
 
 let hookOn = false;
